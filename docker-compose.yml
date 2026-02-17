@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # API Gateway service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      # Server Configuration
+      - SERVER_PORT=8080
+      - GIN_MODE=release
+
+      # Ticket Database Configuration
+      - TICKET_DB_HOST=${TICKET_DB_HOST:-localhost}
+      - TICKET_DB_PORT=${TICKET_DB_PORT:-1433}
+      - TICKET_DB_USER=${TICKET_DB_USER}
+      - TICKET_DB_PASSWORD=${TICKET_DB_PASSWORD}
+      - TICKET_DB_NAME=${TICKET_DB_NAME:-ticket_master}
+
+      # Machine Database Configuration
+      - MACHINE_DB_HOST=${MACHINE_DB_HOST:-localhost}
+      - MACHINE_DB_PORT=${MACHINE_DB_PORT:-1433}
+      - MACHINE_DB_USER=${MACHINE_DB_USER}
+      - MACHINE_DB_PASSWORD=${MACHINE_DB_PASSWORD}
+      - MACHINE_DB_NAME=${MACHINE_DB_NAME:-machine_master}
+
+      # Cloud App Configuration
+      - CLOUD_APP_URL=${CLOUD_APP_URL}
+      - CLOUD_APP_API_KEY=${CLOUD_APP_API_KEY}
+
+      # Security
+      - API_KEY=${API_KEY}
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Network mode - use host network to access on-premise databases
+    # Change this if databases are in a container network
+    network_mode: host
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Networks (if not using host network)
+# networks:
+#   api-network:
+#     driver: bridge
