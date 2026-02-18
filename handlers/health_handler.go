@@ -22,7 +22,7 @@ func NewHealthHandler(dbManager *database.DBManager, logger *logrus.Logger) *Hea
 	}
 }
 
-// Check handles GET /health - performs health check on the API and databases
+// Check handles GET /health - performs real-time health check on the API and databases
 // @Summary Health check
 // @Description Check the health status of the API and database connections
 // @Tags Health
@@ -32,26 +32,26 @@ func NewHealthHandler(dbManager *database.DBManager, logger *logrus.Logger) *Hea
 // @Failure 503 {object} map[string]interface{} "Service unavailable"
 // @Router /health [get]
 func (h *HealthHandler) Check(c *gin.Context) {
-	// Check database health
-	err := h.dbManager.HealthCheck()
-	if err != nil {
-		h.logger.Errorf("Health check failed: %v", err)
+	health := h.dbManager.HealthCheck()
+
+	// Determine overall status
+	allConnected := health.TicketDB == "connected" &&
+		health.MachineDB == "connected" &&
+		(health.TokenDB == "connected" || health.TokenDB == "not configured")
+
+	if !allConnected {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":  "unhealthy",
-			"message": "Database connection failed",
-			"error":   err.Error(),
+			"status":   "unhealthy",
+			"message":  "One or more databases are unavailable",
+			"services": health,
 		})
 		return
 	}
 
-	// All checks passed
 	c.JSON(http.StatusOK, gin.H{
-		"status":  "healthy",
-		"message": "API Gateway is running",
-		"services": gin.H{
-			"ticket_database":  "connected",
-			"machine_database": "connected",
-		},
+		"status":   "healthy",
+		"message":  "API Gateway is running",
+		"services": health,
 	})
 }
 

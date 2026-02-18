@@ -1,0 +1,1021 @@
+basePath: /api/v1
+definitions:
+  models.ATMI:
+    properties:
+      city_regency:
+        description: City or regency name
+        example: Jakarta Pusat
+        type: string
+      date_of_activation:
+        description: Activation date (nullable)
+        example: "2023-01-15T00:00:00Z"
+        type: string
+      district:
+        description: District name
+        example: Menteng
+        type: string
+      gps:
+        description: GPS coordinates
+        example: -6.200000,106.816666
+        type: string
+      lat:
+        description: Latitude
+        example: -6.2
+        type: number
+      lon:
+        description: Longitude
+        example: 106.816666
+        type: number
+      province:
+        description: Province name
+        example: DKI Jakarta
+        type: string
+      status:
+        description: Operational status
+        example: Active
+        type: string
+      std:
+        description: Standard value
+        example: 1
+        type: integer
+      store:
+        description: Store name
+        example: Main Branch
+        type: string
+      store_code:
+        description: Store code
+        example: STR-001
+        type: string
+      store_name:
+        description: Full store name
+        example: Jakarta Main Branch
+        type: string
+      terminal_id:
+        description: Unique terminal identifier
+        example: ATM-001
+        type: string
+    type: object
+  models.ErrorResponse:
+    properties:
+      error:
+        description: Optional detailed error
+        example: detailed error information
+        type: string
+      message:
+        description: Error message
+        example: Error message describing what went wrong
+        type: string
+      success:
+        description: Always false for errors
+        example: false
+        type: boolean
+    type: object
+  models.FLMInfo:
+    properties:
+      area:
+        example: BANDUNG
+        type: string
+      code:
+        example: AVT - BANDUNG
+        type: string
+      description:
+        example: AVT - BANDUNG
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.FLMNameInfo:
+    properties:
+      code:
+        example: AVT
+        type: string
+      description:
+        example: AVT
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.MachineListResponse:
+    properties:
+      data:
+        description: Array of machines
+        items:
+          $ref: '#/definitions/models.ATMI'
+        type: array
+      message:
+        description: Human-readable message
+        type: string
+      success:
+        description: Indicates if operation was successful
+        type: boolean
+      total:
+        description: Total count of machines
+        type: integer
+    type: object
+  models.MachineMetadataResponse:
+    properties:
+      flm_names:
+        description: Available FLM provider names from database
+        items:
+          $ref: '#/definitions/models.FLMNameInfo'
+        type: array
+      flms:
+        description: Available FLM providers from database
+        items:
+          $ref: '#/definitions/models.FLMInfo'
+        type: array
+      last_updated:
+        description: When metadata was last refreshed
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      message:
+        example: Machine metadata retrieved successfully
+        type: string
+      nets:
+        description: Available network providers from database
+        items:
+          $ref: '#/definitions/models.NETInfo'
+        type: array
+      slms:
+        description: Available SLM types from database
+        items:
+          $ref: '#/definitions/models.SLMInfo'
+        type: array
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.MachineResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/models.ATMI'
+        description: Machine data (if applicable)
+      message:
+        description: Human-readable message
+        type: string
+      success:
+        description: Indicates if operation was successful
+        type: boolean
+    type: object
+  models.MachineStatusUpdate:
+    properties:
+      gps:
+        description: 'Optional: GPS coordinates'
+        example: -6.200000,106.816666
+        type: string
+      lat:
+        description: 'Optional: latitude'
+        example: -6.2
+        type: number
+      lon:
+        description: 'Optional: longitude'
+        example: 106.816666
+        type: number
+      status:
+        description: 'Required: new status'
+        example: Active
+        type: string
+      terminal_id:
+        description: 'Required: terminal to update'
+        example: ATM-001
+        type: string
+    required:
+    - status
+    - terminal_id
+    type: object
+  models.MetadataResponse:
+    properties:
+      last_updated:
+        description: When metadata was last refreshed
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      message:
+        description: Response message
+        example: Metadata retrieved successfully
+        type: string
+      modes:
+        description: Available mode values from database
+        items:
+          $ref: '#/definitions/models.ModeInfo'
+        type: array
+      priorities:
+        description: Available priority values from database
+        items:
+          $ref: '#/definitions/models.PriorityInfo'
+        type: array
+      statuses:
+        description: Available status values from database
+        items:
+          $ref: '#/definitions/models.StatusInfo'
+        type: array
+      success:
+        description: Operation success status
+        example: true
+        type: boolean
+    type: object
+  models.ModeInfo:
+    properties:
+      code:
+        description: Mode code from database
+        example: Off-line
+        type: string
+      description:
+        description: Human-readable description
+        example: Terminal is offline
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.NETInfo:
+    properties:
+      code:
+        example: NOSAIRIS
+        type: string
+      description:
+        example: NOSAIRIS
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.OpenTicket:
+    properties:
+      balance:
+        description: Balance amount
+        example: 1000000
+        type: integer
+      close_time:
+        description: Ticket close time (nullable)
+        example: "2024-01-15 18:00:00"
+        type: string
+      condition:
+        description: Condition status (nullable)
+        example: Critical
+        type: string
+      count:
+        description: Count value
+        example: 5
+        type: integer
+      current_problem:
+        description: Current problem description (nullable)
+        example: Card reader error
+        type: string
+      dsp_flm:
+        description: DSP FLM identifier (nullable)
+        example: FLM-001
+        type: string
+      dsp_slm:
+        description: DSP SLM identifier (nullable)
+        example: SLM-001
+        type: string
+      export_name:
+        description: Export name for reports (nullable)
+        example: ATM_Report_Jan2024
+        type: string
+      incident_start_datetime:
+        description: Incident start timestamp (nullable)
+        example: "2024-01-15 10:30:00"
+        type: string
+      initial_problem:
+        description: Initial problem description (nullable)
+        example: Cash dispenser jam
+        type: string
+      last_withdrawal:
+        description: Last withdrawal timestamp (nullable)
+        example: "2024-01-15T09:30:00Z"
+        type: string
+      mode:
+        description: 'Terminal mode (nullable): Closed, In Service, nan, Off-line,
+          Supervisor'
+        example: Off-line
+        type: string
+      mode_history:
+        description: Mode change history (nullable)
+        example: Online->Offline->Online
+        type: string
+      open_time:
+        description: Ticket open time (nullable)
+        example: "2024-01-15 08:00:00"
+        type: string
+      p_duration:
+        description: Problem duration (nullable)
+        example: 2h 30m
+        type: string
+      priority:
+        description: 'Priority level (nullable): 1.High, 2.Middle, 3.Low, 4.Minimum'
+        example: 1.High
+        type: string
+      problem_history:
+        description: Problem history (nullable)
+        example: Card reader issue resolved
+        type: string
+      remarks:
+        description: Remarks/notes (nullable)
+        example: Waiting for technician
+        type: string
+      status:
+        description: 'Ticket status (nullable): 0.NEW, 1.Req FD ke HD, 2.Kirim FLM,
+          etc.'
+        example: 0.NEW
+        type: string
+      terminal_id:
+        description: Terminal identifier
+        example: ATM-001
+        type: string
+      terminal_name:
+        description: Terminal name
+        example: Main Branch ATM
+        type: string
+      tickets_duration:
+        description: Ticket duration in minutes (float)
+        example: 150.5
+        type: number
+      tickets_no:
+        description: Ticket number (nullable)
+        example: TKT-2024-001
+        type: string
+    type: object
+  models.PriorityInfo:
+    properties:
+      code:
+        description: Priority code from database
+        example: 1.High
+        type: string
+      description:
+        description: Human-readable description
+        example: High priority
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.SLMInfo:
+    properties:
+      code:
+        example: KGP - WINCOR DW
+        type: string
+      description:
+        example: KGP - WINCOR DW
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.StatusInfo:
+    properties:
+      code:
+        description: Status code from database
+        example: 0.NEW
+        type: string
+      description:
+        description: Human-readable description
+        example: New ticket
+        type: string
+      is_documented:
+        description: Whether this value has documentation
+        example: true
+        type: boolean
+    type: object
+  models.TicketCreateRequest:
+    properties:
+      condition:
+        description: 'Optional: condition'
+        example: Critical
+        type: string
+      current_problem:
+        description: 'Optional: current problem'
+        example: Card reader error
+        type: string
+      export_name:
+        description: 'Optional: export name'
+        example: ATM_Report_Jan2024
+        type: string
+      incident_start_datetime:
+        description: 'Optional: incident start time'
+        example: "2024-01-15 10:30:00"
+        type: string
+      initial_problem:
+        description: 'Required: initial problem'
+        example: Cash dispenser jam
+        type: string
+      mode:
+        description: 'Required: terminal mode (Closed, In Service, nan, Off-line,
+          Supervisor)'
+        example: Off-line
+        type: string
+      p_duration:
+        description: 'Optional: problem duration'
+        example: 2h 30m
+        type: string
+      priority:
+        description: 'Required: priority level (1.High, 2.Middle, 3.Low, 4.Minimum)'
+        example: 1.High
+        type: string
+      remarks:
+        description: 'Optional: remarks'
+        example: Waiting for technician
+        type: string
+      status:
+        description: 'Optional: status (0.NEW, 1.Req FD ke HD, etc.)'
+        example: 0.NEW
+        type: string
+      terminal_id:
+        description: 'Required: terminal identifier'
+        example: ATM-001
+        type: string
+      terminal_name:
+        description: 'Required: terminal name'
+        example: Main Branch ATM
+        type: string
+      tickets_no:
+        description: 'Optional: ticket number'
+        example: TKT-2024-001
+        type: string
+    required:
+    - initial_problem
+    - mode
+    - priority
+    - terminal_id
+    - terminal_name
+    type: object
+  models.TicketListResponse:
+    properties:
+      data:
+        description: Array of tickets
+        items:
+          $ref: '#/definitions/models.OpenTicket'
+        type: array
+      message:
+        description: Human-readable message
+        type: string
+      success:
+        description: Indicates if operation was successful
+        type: boolean
+      total:
+        description: Total count of tickets
+        type: integer
+    type: object
+  models.TicketResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/models.OpenTicket'
+        description: Ticket data (if applicable)
+      message:
+        description: Human-readable message
+        type: string
+      success:
+        description: Indicates if operation was successful
+        type: boolean
+    type: object
+  models.TicketUpdateRequest:
+    properties:
+      close_time:
+        description: 'Optional: set close time'
+        example: "2024-01-15 18:00:00"
+        type: string
+      condition:
+        description: 'Optional: update condition'
+        example: Normal
+        type: string
+      current_problem:
+        description: 'Optional: update current problem'
+        example: Card reader fixed
+        type: string
+      mode:
+        description: 'Optional: update mode (Closed, In Service, nan, Off-line, Supervisor)'
+        example: Off-line
+        type: string
+      mode_history:
+        description: 'Optional: update mode history'
+        example: Online->Offline->Online
+        type: string
+      priority:
+        description: 'Optional: update priority (1.High, 2.Middle, 3.Low, 4.Minimum)'
+        example: 1.High
+        type: string
+      problem_history:
+        description: 'Optional: update problem history'
+        example: Card reader issue resolved
+        type: string
+      remarks:
+        description: 'Optional: update remarks'
+        example: Issue resolved
+        type: string
+      status:
+        description: 'Optional: update status (0.NEW, 1.Req FD ke HD, etc.)'
+        example: 0.NEW
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: This API Gateway serves as middleware between on-premise databases
+    and cloud applications, providing RESTful APIs for ticket and machine management.
+  license:
+    name: Proprietary
+    url: http://www.example.com/license
+  termsOfService: http://swagger.io/terms/
+  title: API Gateway for On-Premise to Cloud Communication
+  version: "1.0"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check the health status of the API and database connections
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API is healthy
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - Health
+  /machines:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all machines/terminals from the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of machines retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MachineListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all machines
+      tags:
+      - Machines
+  /machines/{terminal_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific machine by its terminal ID
+      parameters:
+      - description: Terminal ID
+        in: path
+        name: terminal_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Machine retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MachineResponse'
+        "404":
+          description: Machine not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get machine by terminal ID
+      tags:
+      - Machines
+  /machines/branch/{branch_code}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all machines for a specific store code
+      parameters:
+      - description: Store Code
+        in: path
+        name: branch_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Machines retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MachineListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get machines by store code
+      tags:
+      - Machines
+  /machines/metadata:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieve all valid values for machine SLM, FLM, NET, and FLM Name fields from the database
+        Values are cached for 1 hour for performance. New values automatically appear after cache refresh.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metadata retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MachineMetadataResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get machine metadata
+      tags:
+      - Machines
+  /machines/search:
+    get:
+      consumes:
+      - application/json
+      description: Search machines using multiple filter criteria
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by store code
+        in: query
+        name: store_code
+        type: string
+      - description: Filter by province
+        in: query
+        name: province
+        type: string
+      - description: Filter by city/regency
+        in: query
+        name: city_regency
+        type: string
+      - description: Search by district (partial match)
+        in: query
+        name: district
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search completed successfully
+          schema:
+            $ref: '#/definitions/models.MachineListResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Search machines
+      tags:
+      - Machines
+  /machines/status:
+    patch:
+      consumes:
+      - application/json
+      description: Update the operational status of a machine
+      parameters:
+      - description: Machine status update data
+        in: body
+        name: machine
+        required: true
+        schema:
+          $ref: '#/definitions/models.MachineStatusUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Machine status updated successfully
+          schema:
+            $ref: '#/definitions/models.MachineResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update machine status
+      tags:
+      - Machines
+  /machines/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all machines with a specific operational status
+      parameters:
+      - description: Machine Status
+        enum:
+        - Active
+        - Inactive
+        - Maintenance
+        - Offline
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Machines retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MachineListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get machines by status
+      tags:
+      - Machines
+  /ping:
+    get:
+      consumes:
+      - application/json
+      description: Simple ping endpoint to check if the API is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: pong
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Ping
+      tags:
+      - Health
+  /tickets:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tickets from the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of tickets retrieved successfully
+          schema:
+            $ref: '#/definitions/models.TicketListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all tickets
+      tags:
+      - Tickets
+    post:
+      consumes:
+      - application/json
+      description: Create a new ticket in the system
+      parameters:
+      - description: Ticket creation data
+        in: body
+        name: ticket
+        required: true
+        schema:
+          $ref: '#/definitions/models.TicketCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Ticket created successfully
+          schema:
+            $ref: '#/definitions/models.TicketResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "409":
+          description: Ticket number already exists
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new ticket
+      tags:
+      - Tickets
+  /tickets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific ticket by its terminal ID
+      parameters:
+      - description: Terminal ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ticket retrieved successfully
+          schema:
+            $ref: '#/definitions/models.TicketResponse'
+        "404":
+          description: Ticket not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get ticket by terminal ID
+      tags:
+      - Tickets
+    put:
+      consumes:
+      - application/json
+      description: Update an existing ticket by terminal ID
+      parameters:
+      - description: Terminal ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Ticket update data
+        in: body
+        name: ticket
+        required: true
+        schema:
+          $ref: '#/definitions/models.TicketUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ticket updated successfully
+          schema:
+            $ref: '#/definitions/models.TicketResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a ticket
+      tags:
+      - Tickets
+  /tickets/metadata:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieve all valid values for ticket status, mode, and priority fields from the database
+        Values are cached for 1 hour for performance. New values automatically appear after cache refresh.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metadata retrieved successfully
+          schema:
+            $ref: '#/definitions/models.MetadataResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get ticket metadata
+      tags:
+      - Tickets
+  /tickets/number/{number}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a ticket by its unique ticket number
+      parameters:
+      - description: Ticket Number
+        in: path
+        name: number
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ticket retrieved successfully
+          schema:
+            $ref: '#/definitions/models.TicketResponse'
+        "404":
+          description: Ticket not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get ticket by number
+      tags:
+      - Tickets
+  /tickets/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tickets with a specific status
+      parameters:
+      - description: Ticket Status
+        enum:
+        - 0.NEW
+        - 1.Req FD ke HD
+        - 2.Kirim FLM
+        - 21.Req Replenish
+        - 3.SLM
+        - 4.SLM-Net
+        - 5.Menunggu Update
+        - 6.Follow-up Sales team
+        - 8.Wait transaction
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tickets retrieved successfully
+          schema:
+            $ref: '#/definitions/models.TicketListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get tickets by status
+      tags:
+      - Tickets
+  /tickets/terminal/{terminal_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tickets associated with a specific terminal
+      parameters:
+      - description: Terminal ID
+        in: path
+        name: terminal_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tickets retrieved successfully
+          schema:
+            $ref: '#/definitions/models.TicketListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get tickets by terminal
+      tags:
+      - Tickets
+securityDefinitions:
+  ApiKeyAuth:
+    description: API key for authentication. Required for all endpoints except /health
+      and /ping.
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"

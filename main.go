@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
@@ -57,15 +58,13 @@ func main() {
 	// Set Gin mode based on configuration
 	gin.SetMode(cfg.Server.GinMode)
 
-	// Initialize database connections
-	dbManager, err := database.NewDBManager(
+	// Initialize database connections (non-fatal: app keeps running if a DB is unavailable)
+	dbManager := database.NewDBManager(
 		cfg.TicketDB.GetDSN(),
 		cfg.MachineDB.GetDSN(),
+		cfg.TokenDB.GetDSN(),
 		logger,
 	)
-	if err != nil {
-		logger.Fatalf("Failed to initialize database: %v", err)
-	}
 	defer dbManager.Close()
 
 	// Initialize repositories
@@ -81,12 +80,26 @@ func main() {
 	machineHandler := handlers.NewMachineHandler(machineService, logger)
 	healthHandler := handlers.NewHealthHandler(dbManager, logger)
 
+	// Initialize token management (if token DB is available)
+	var tokenHandler *handlers.TokenHandler
+	var tokenService *service.TokenService
+
+	if dbManager.TokenDB != nil {
+		tokenRepo := repository.NewTokenRepository(dbManager.TokenDB, logger)
+		tokenService = service.NewTokenService(tokenRepo, logger)
+		tokenHandler = handlers.NewTokenHandler(tokenService, logger)
+		logger.Info("Token management system initialized")
+	} else {
+		logger.Warn("Token management system not available (no database connection)")
+	}
+
 	// Create Gin router
 	router := gin.New()
 
 	// Apply global middleware
-	router.Use(gin.Recovery())           // Recover from panics
-	router.Use(middleware.Logger(logger)) // Custom logger middleware
+	router.Use(gin.Recovery())                       // Recover from panics
+	router.Use(middleware.Logger(logger))             // Custom logger middleware
+	router.Use(gzip.Gzip(gzip.DefaultCompression))   // Compress responses (1-5MB → ~200-500KB)
 
 	// Setup routes
 	routes.SetupRoutes(
@@ -94,20 +107,18 @@ func main() {
 		ticketHandler,
 		machineHandler,
 		healthHandler,
+		tokenHandler,
+		tokenService,
 		cfg.Security.APIKey,
 	)
 
 	// Setup graceful shutdown
 	go func() {
-		// Create channel to listen for interrupt signals
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-		// Wait for interrupt signal
 		<-quit
 		logger.Info("Shutting down API Gateway...")
 
-		// Close database connections
 		if err := dbManager.Close(); err != nil {
 			logger.Errorf("Error during shutdown: %v", err)
 		}
@@ -119,6 +130,9 @@ func main() {
 	address := fmt.Sprintf(":%s", cfg.Server.Port)
 	logger.Infof("API Gateway listening on %s", address)
 	logger.Infof("Environment: %s", cfg.Server.GinMode)
+	if tokenHandler != nil {
+		logger.Infof("Admin Dashboard: http://localhost:%s/admin", cfg.Server.Port)
+	}
 
 	if err := router.Run(address); err != nil {
 		logger.Fatalf("Failed to start server: %v", err)

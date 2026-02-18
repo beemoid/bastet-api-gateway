@@ -1,0 +1,1461 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This API Gateway serves as middleware between on-premise databases and cloud applications, providing RESTful APIs for ticket and machine management.",
+        "title": "API Gateway for On-Premise to Cloud Communication",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.example.com/support",
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "Proprietary",
+            "url": "http://www.example.com/license"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Check the health status of the API and database connections",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "API is healthy",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/machines": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all machines/terminals from the system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Get all machines",
+                "responses": {
+                    "200": {
+                        "description": "List of machines retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/branch/{branch_code}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all machines for a specific store code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Get machines by store code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Store Code",
+                        "name": "branch_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Machines retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/metadata": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all valid values for machine SLM, FLM, NET, and FLM Name fields from the database\nValues are cached for 1 hour for performance. New values automatically appear after cache refresh.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Get machine metadata",
+                "responses": {
+                    "200": {
+                        "description": "Metadata retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineMetadataResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/search": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Search machines using multiple filter criteria",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Search machines",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by store code",
+                        "name": "store_code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by province",
+                        "name": "province",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by city/regency",
+                        "name": "city_regency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by district (partial match)",
+                        "name": "district",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search completed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/status": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update the operational status of a machine",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Update machine status",
+                "parameters": [
+                    {
+                        "description": "Machine status update data",
+                        "name": "machine",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineStatusUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Machine status updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/status/{status}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all machines with a specific operational status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Get machines by status",
+                "parameters": [
+                    {
+                        "enum": [
+                            "Active",
+                            "Inactive",
+                            "Maintenance",
+                            "Offline"
+                        ],
+                        "type": "string",
+                        "description": "Machine Status",
+                        "name": "status",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Machines retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/machines/{terminal_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific machine by its terminal ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Machines"
+                ],
+                "summary": "Get machine by terminal ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "terminal_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Machine retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MachineResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Machine not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "description": "Simple ping endpoint to check if the API is running",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Ping",
+                "responses": {
+                    "200": {
+                        "description": "pong",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all tickets from the system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get all tickets",
+                "responses": {
+                    "200": {
+                        "description": "List of tickets retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a new ticket in the system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Create a new ticket",
+                "parameters": [
+                    {
+                        "description": "Ticket creation data",
+                        "name": "ticket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Ticket created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Ticket number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/metadata": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all valid values for ticket status, mode, and priority fields from the database\nValues are cached for 1 hour for performance. New values automatically appear after cache refresh.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get ticket metadata",
+                "responses": {
+                    "200": {
+                        "description": "Metadata retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MetadataResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/number/{number}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve a ticket by its unique ticket number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get ticket by number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Ticket Number",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Ticket not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/status/{status}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all tickets with a specific status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get tickets by status",
+                "parameters": [
+                    {
+                        "enum": [
+                            "0.NEW",
+                            "1.Req FD ke HD",
+                            "2.Kirim FLM",
+                            "21.Req Replenish",
+                            "3.SLM",
+                            "4.SLM-Net",
+                            "5.Menunggu Update",
+                            "6.Follow-up Sales team",
+                            "8.Wait transaction"
+                        ],
+                        "type": "string",
+                        "description": "Ticket Status",
+                        "name": "status",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tickets retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/terminal/{terminal_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve all tickets associated with a specific terminal",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get tickets by terminal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "terminal_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tickets retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific ticket by its terminal ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Get ticket by terminal ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Ticket not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update an existing ticket by terminal ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tickets"
+                ],
+                "summary": "Update a ticket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ticket update data",
+                        "name": "ticket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.ATMI": {
+            "type": "object",
+            "properties": {
+                "city_regency": {
+                    "description": "City or regency name",
+                    "type": "string",
+                    "example": "Jakarta Pusat"
+                },
+                "date_of_activation": {
+                    "description": "Activation date (nullable)",
+                    "type": "string",
+                    "example": "2023-01-15T00:00:00Z"
+                },
+                "district": {
+                    "description": "District name",
+                    "type": "string",
+                    "example": "Menteng"
+                },
+                "gps": {
+                    "description": "GPS coordinates",
+                    "type": "string",
+                    "example": "-6.200000,106.816666"
+                },
+                "lat": {
+                    "description": "Latitude",
+                    "type": "number",
+                    "example": -6.2
+                },
+                "lon": {
+                    "description": "Longitude",
+                    "type": "number",
+                    "example": 106.816666
+                },
+                "province": {
+                    "description": "Province name",
+                    "type": "string",
+                    "example": "DKI Jakarta"
+                },
+                "status": {
+                    "description": "Operational status",
+                    "type": "string",
+                    "example": "Active"
+                },
+                "std": {
+                    "description": "Standard value",
+                    "type": "integer",
+                    "example": 1
+                },
+                "store": {
+                    "description": "Store name",
+                    "type": "string",
+                    "example": "Main Branch"
+                },
+                "store_code": {
+                    "description": "Store code",
+                    "type": "string",
+                    "example": "STR-001"
+                },
+                "store_name": {
+                    "description": "Full store name",
+                    "type": "string",
+                    "example": "Jakarta Main Branch"
+                },
+                "terminal_id": {
+                    "description": "Unique terminal identifier",
+                    "type": "string",
+                    "example": "ATM-001"
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Optional detailed error",
+                    "type": "string",
+                    "example": "detailed error information"
+                },
+                "message": {
+                    "description": "Error message",
+                    "type": "string",
+                    "example": "Error message describing what went wrong"
+                },
+                "success": {
+                    "description": "Always false for errors",
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "models.FLMInfo": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "string",
+                    "example": "BANDUNG"
+                },
+                "code": {
+                    "type": "string",
+                    "example": "AVT - BANDUNG"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "AVT - BANDUNG"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.FLMNameInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "AVT"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "AVT"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.MachineListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Array of machines",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ATMI"
+                    }
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "success": {
+                    "description": "Indicates if operation was successful",
+                    "type": "boolean"
+                },
+                "total": {
+                    "description": "Total count of machines",
+                    "type": "integer"
+                }
+            }
+        },
+        "models.MachineMetadataResponse": {
+            "type": "object",
+            "properties": {
+                "flm_names": {
+                    "description": "Available FLM provider names from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FLMNameInfo"
+                    }
+                },
+                "flms": {
+                    "description": "Available FLM providers from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FLMInfo"
+                    }
+                },
+                "last_updated": {
+                    "description": "When metadata was last refreshed",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Machine metadata retrieved successfully"
+                },
+                "nets": {
+                    "description": "Available network providers from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.NETInfo"
+                    }
+                },
+                "slms": {
+                    "description": "Available SLM types from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SLMInfo"
+                    }
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.MachineResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Machine data (if applicable)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ATMI"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "success": {
+                    "description": "Indicates if operation was successful",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.MachineStatusUpdate": {
+            "type": "object",
+            "required": [
+                "status",
+                "terminal_id"
+            ],
+            "properties": {
+                "gps": {
+                    "description": "Optional: GPS coordinates",
+                    "type": "string",
+                    "example": "-6.200000,106.816666"
+                },
+                "lat": {
+                    "description": "Optional: latitude",
+                    "type": "number",
+                    "example": -6.2
+                },
+                "lon": {
+                    "description": "Optional: longitude",
+                    "type": "number",
+                    "example": 106.816666
+                },
+                "status": {
+                    "description": "Required: new status",
+                    "type": "string",
+                    "example": "Active"
+                },
+                "terminal_id": {
+                    "description": "Required: terminal to update",
+                    "type": "string",
+                    "example": "ATM-001"
+                }
+            }
+        },
+        "models.MetadataResponse": {
+            "type": "object",
+            "properties": {
+                "last_updated": {
+                    "description": "When metadata was last refreshed",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string",
+                    "example": "Metadata retrieved successfully"
+                },
+                "modes": {
+                    "description": "Available mode values from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ModeInfo"
+                    }
+                },
+                "priorities": {
+                    "description": "Available priority values from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PriorityInfo"
+                    }
+                },
+                "statuses": {
+                    "description": "Available status values from database",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.StatusInfo"
+                    }
+                },
+                "success": {
+                    "description": "Operation success status",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.ModeInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Mode code from database",
+                    "type": "string",
+                    "example": "Off-line"
+                },
+                "description": {
+                    "description": "Human-readable description",
+                    "type": "string",
+                    "example": "Terminal is offline"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.NETInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "NOSAIRIS"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "NOSAIRIS"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.OpenTicket": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "description": "Balance amount",
+                    "type": "integer",
+                    "example": 1000000
+                },
+                "close_time": {
+                    "description": "Ticket close time (nullable)",
+                    "type": "string",
+                    "example": "2024-01-15 18:00:00"
+                },
+                "condition": {
+                    "description": "Condition status (nullable)",
+                    "type": "string",
+                    "example": "Critical"
+                },
+                "count": {
+                    "description": "Count value",
+                    "type": "integer",
+                    "example": 5
+                },
+                "current_problem": {
+                    "description": "Current problem description (nullable)",
+                    "type": "string",
+                    "example": "Card reader error"
+                },
+                "dsp_flm": {
+                    "description": "DSP FLM identifier (nullable)",
+                    "type": "string",
+                    "example": "FLM-001"
+                },
+                "dsp_slm": {
+                    "description": "DSP SLM identifier (nullable)",
+                    "type": "string",
+                    "example": "SLM-001"
+                },
+                "export_name": {
+                    "description": "Export name for reports (nullable)",
+                    "type": "string",
+                    "example": "ATM_Report_Jan2024"
+                },
+                "incident_start_datetime": {
+                    "description": "Incident start timestamp (nullable)",
+                    "type": "string",
+                    "example": "2024-01-15 10:30:00"
+                },
+                "initial_problem": {
+                    "description": "Initial problem description (nullable)",
+                    "type": "string",
+                    "example": "Cash dispenser jam"
+                },
+                "last_withdrawal": {
+                    "description": "Last withdrawal timestamp (nullable)",
+                    "type": "string",
+                    "example": "2024-01-15T09:30:00Z"
+                },
+                "mode": {
+                    "description": "Terminal mode (nullable): Closed, In Service, nan, Off-line, Supervisor",
+                    "type": "string",
+                    "example": "Off-line"
+                },
+                "mode_history": {
+                    "description": "Mode change history (nullable)",
+                    "type": "string",
+                    "example": "Online-\u003eOffline-\u003eOnline"
+                },
+                "open_time": {
+                    "description": "Ticket open time (nullable)",
+                    "type": "string",
+                    "example": "2024-01-15 08:00:00"
+                },
+                "p_duration": {
+                    "description": "Problem duration (nullable)",
+                    "type": "string",
+                    "example": "2h 30m"
+                },
+                "priority": {
+                    "description": "Priority level (nullable): 1.High, 2.Middle, 3.Low, 4.Minimum",
+                    "type": "string",
+                    "example": "1.High"
+                },
+                "problem_history": {
+                    "description": "Problem history (nullable)",
+                    "type": "string",
+                    "example": "Card reader issue resolved"
+                },
+                "remarks": {
+                    "description": "Remarks/notes (nullable)",
+                    "type": "string",
+                    "example": "Waiting for technician"
+                },
+                "status": {
+                    "description": "Ticket status (nullable): 0.NEW, 1.Req FD ke HD, 2.Kirim FLM, etc.",
+                    "type": "string",
+                    "example": "0.NEW"
+                },
+                "terminal_id": {
+                    "description": "Terminal identifier",
+                    "type": "string",
+                    "example": "ATM-001"
+                },
+                "terminal_name": {
+                    "description": "Terminal name",
+                    "type": "string",
+                    "example": "Main Branch ATM"
+                },
+                "tickets_duration": {
+                    "description": "Ticket duration in minutes (float)",
+                    "type": "number",
+                    "example": 150.5
+                },
+                "tickets_no": {
+                    "description": "Ticket number (nullable)",
+                    "type": "string",
+                    "example": "TKT-2024-001"
+                }
+            }
+        },
+        "models.PriorityInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Priority code from database",
+                    "type": "string",
+                    "example": "1.High"
+                },
+                "description": {
+                    "description": "Human-readable description",
+                    "type": "string",
+                    "example": "High priority"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.SLMInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "KGP - WINCOR DW"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "KGP - WINCOR DW"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.StatusInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code from database",
+                    "type": "string",
+                    "example": "0.NEW"
+                },
+                "description": {
+                    "description": "Human-readable description",
+                    "type": "string",
+                    "example": "New ticket"
+                },
+                "is_documented": {
+                    "description": "Whether this value has documentation",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.TicketCreateRequest": {
+            "type": "object",
+            "required": [
+                "initial_problem",
+                "mode",
+                "priority",
+                "terminal_id",
+                "terminal_name"
+            ],
+            "properties": {
+                "condition": {
+                    "description": "Optional: condition",
+                    "type": "string",
+                    "example": "Critical"
+                },
+                "current_problem": {
+                    "description": "Optional: current problem",
+                    "type": "string",
+                    "example": "Card reader error"
+                },
+                "export_name": {
+                    "description": "Optional: export name",
+                    "type": "string",
+                    "example": "ATM_Report_Jan2024"
+                },
+                "incident_start_datetime": {
+                    "description": "Optional: incident start time",
+                    "type": "string",
+                    "example": "2024-01-15 10:30:00"
+                },
+                "initial_problem": {
+                    "description": "Required: initial problem",
+                    "type": "string",
+                    "example": "Cash dispenser jam"
+                },
+                "mode": {
+                    "description": "Required: terminal mode (Closed, In Service, nan, Off-line, Supervisor)",
+                    "type": "string",
+                    "example": "Off-line"
+                },
+                "p_duration": {
+                    "description": "Optional: problem duration",
+                    "type": "string",
+                    "example": "2h 30m"
+                },
+                "priority": {
+                    "description": "Required: priority level (1.High, 2.Middle, 3.Low, 4.Minimum)",
+                    "type": "string",
+                    "example": "1.High"
+                },
+                "remarks": {
+                    "description": "Optional: remarks",
+                    "type": "string",
+                    "example": "Waiting for technician"
+                },
+                "status": {
+                    "description": "Optional: status (0.NEW, 1.Req FD ke HD, etc.)",
+                    "type": "string",
+                    "example": "0.NEW"
+                },
+                "terminal_id": {
+                    "description": "Required: terminal identifier",
+                    "type": "string",
+                    "example": "ATM-001"
+                },
+                "terminal_name": {
+                    "description": "Required: terminal name",
+                    "type": "string",
+                    "example": "Main Branch ATM"
+                },
+                "tickets_no": {
+                    "description": "Optional: ticket number",
+                    "type": "string",
+                    "example": "TKT-2024-001"
+                }
+            }
+        },
+        "models.TicketListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Array of tickets",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OpenTicket"
+                    }
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "success": {
+                    "description": "Indicates if operation was successful",
+                    "type": "boolean"
+                },
+                "total": {
+                    "description": "Total count of tickets",
+                    "type": "integer"
+                }
+            }
+        },
+        "models.TicketResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Ticket data (if applicable)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.OpenTicket"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "success": {
+                    "description": "Indicates if operation was successful",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.TicketUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "close_time": {
+                    "description": "Optional: set close time",
+                    "type": "string",
+                    "example": "2024-01-15 18:00:00"
+                },
+                "condition": {
+                    "description": "Optional: update condition",
+                    "type": "string",
+                    "example": "Normal"
+                },
+                "current_problem": {
+                    "description": "Optional: update current problem",
+                    "type": "string",
+                    "example": "Card reader fixed"
+                },
+                "mode": {
+                    "description": "Optional: update mode (Closed, In Service, nan, Off-line, Supervisor)",
+                    "type": "string",
+                    "example": "Off-line"
+                },
+                "mode_history": {
+                    "description": "Optional: update mode history",
+                    "type": "string",
+                    "example": "Online-\u003eOffline-\u003eOnline"
+                },
+                "priority": {
+                    "description": "Optional: update priority (1.High, 2.Middle, 3.Low, 4.Minimum)",
+                    "type": "string",
+                    "example": "1.High"
+                },
+                "problem_history": {
+                    "description": "Optional: update problem history",
+                    "type": "string",
+                    "example": "Card reader issue resolved"
+                },
+                "remarks": {
+                    "description": "Optional: update remarks",
+                    "type": "string",
+                    "example": "Issue resolved"
+                },
+                "status": {
+                    "description": "Optional: update status (0.NEW, 1.Req FD ke HD, etc.)",
+                    "type": "string",
+                    "example": "0.NEW"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "API key for authentication. Required for all endpoints except /health and /ping.",
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        }
+    }
+}

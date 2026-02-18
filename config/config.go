@@ -13,6 +13,7 @@ type Config struct {
 	Server      ServerConfig
 	TicketDB    DatabaseConfig
 	MachineDB   DatabaseConfig
+	TokenDB     DatabaseConfig
 	CloudApp    CloudAppConfig
 	Security    SecurityConfig
 }
@@ -69,6 +70,13 @@ func Load() (*Config, error) {
 			User:     getEnv("MACHINE_DB_USER", ""),
 			Password: getEnv("MACHINE_DB_PASSWORD", ""),
 			Database: getEnv("MACHINE_DB_NAME", "machine_master"),
+		},
+		TokenDB: DatabaseConfig{
+			Host:     getEnv("TOKEN_DB_HOST", getEnv("TICKET_DB_HOST", "localhost")),
+			Port:     getEnv("TOKEN_DB_PORT", getEnv("TICKET_DB_PORT", "1433")),
+			User:     getEnv("TOKEN_DB_USER", getEnv("TICKET_DB_USER", "")),
+			Password: getEnv("TOKEN_DB_PASSWORD", getEnv("TICKET_DB_PASSWORD", "")),
+			Database: getEnv("TOKEN_DB_NAME", "token_management"),
 		},
 		CloudApp: CloudAppConfig{
 			URL:    getEnv("CLOUD_APP_URL", ""),

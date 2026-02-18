@@ -10,113 +10,124 @@ import (
 )
 
 // DBManager manages multiple database connections
-// Holds separate connections for ticket and machine databases
+// Holds separate connections for ticket, machine, and token databases
 type DBManager struct {
 	TicketDB  *sql.DB // Connection to ticket_master database
 	MachineDB *sql.DB // Connection to machine_master database
+	TokenDB   *sql.DB // Connection to token_management database
 	logger    *logrus.Logger
 }
 
-// NewDBManager creates a new database manager with connections to both databases
-// Parameters:
-//   - ticketDSN: Connection string for ticket database
-//   - machineDSN: Connection string for machine database
-//   - logger: Logger instance for database operations
-// Returns error if any database connection fails
-func NewDBManager(ticketDSN, machineDSN string, logger *logrus.Logger) (*DBManager, error) {
+// NewDBManager creates a new database manager with connections to all databases
+// Connections are non-fatal: if a database is unavailable at startup, the app
+// keeps running and the connection will succeed automatically once the database
+// becomes available. Health endpoint reports real-time status.
+func NewDBManager(ticketDSN, machineDSN, tokenDSN string, logger *logrus.Logger) *DBManager {
 	manager := &DBManager{
 		logger: logger,
 	}
 
-	// Connect to Ticket Database
-	ticketDB, err := sql.Open("sqlserver", ticketDSN)
+	manager.TicketDB = openDB(ticketDSN, "ticket_master", logger)
+	manager.MachineDB = openDB(machineDSN, "machine_master", logger)
+
+	if tokenDSN != "" {
+		manager.TokenDB = openDB(tokenDSN, "token_management", logger)
+	} else {
+		logger.Warn("Token database DSN not configured, token management will be unavailable")
+	}
+
+	return manager
+}
+
+// openDB opens a database connection, configures the pool, and pings.
+// Always returns the *sql.DB even if ping fails — Go's database/sql
+// will automatically reconnect when the database becomes available.
+func openDB(dsn, name string, logger *logrus.Logger) *sql.DB {
+	db, err := sql.Open("sqlserver", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to ticket database: %w", err)
+		logger.Warnf("Failed to open %s database: %v", name, err)
+		return nil
 	}
 
-	// Configure ticket database connection pool
-	ticketDB.SetMaxOpenConns(25)                 // Maximum number of open connections
-	ticketDB.SetMaxIdleConns(5)                  // Maximum number of idle connections
-	ticketDB.SetConnMaxLifetime(5 * time.Minute) // Maximum lifetime of a connection
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Verify ticket database connection
-	if err := ticketDB.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping ticket database: %w", err)
+	if err := db.Ping(); err != nil {
+		logger.Warnf("%s database not available at startup: %v (will retry automatically)", name, err)
+	} else {
+		logger.Infof("Successfully connected to %s database", name)
 	}
 
-	manager.TicketDB = ticketDB
-	logger.Info("Successfully connected to ticket_master database")
-
-	// Connect to Machine Database
-	machineDB, err := sql.Open("sqlserver", machineDSN)
-	if err != nil {
-		ticketDB.Close() // Clean up ticket connection
-		return nil, fmt.Errorf("failed to connect to machine database: %w", err)
-	}
-
-	// Configure machine database connection pool
-	machineDB.SetMaxOpenConns(25)
-	machineDB.SetMaxIdleConns(5)
-	machineDB.SetConnMaxLifetime(5 * time.Minute)
-
-	// Verify machine database connection
-	if err := machineDB.Ping(); err != nil {
-		ticketDB.Close()  // Clean up ticket connection
-		machineDB.Close() // Clean up machine connection
-		return nil, fmt.Errorf("failed to ping machine database: %w", err)
-	}
-
-	manager.MachineDB = machineDB
-	logger.Info("Successfully connected to machine_master database")
-
-	return manager, nil
+	return db
 }
 
 // Close gracefully closes all database connections
 // Should be called when the application shuts down
 func (dm *DBManager) Close() error {
-	var ticketErr, machineErr error
+	var firstErr error
 
-	// Close ticket database connection
 	if dm.TicketDB != nil {
-		ticketErr = dm.TicketDB.Close()
-		if ticketErr != nil {
-			dm.logger.Errorf("Error closing ticket database: %v", ticketErr)
+		if err := dm.TicketDB.Close(); err != nil {
+			dm.logger.Errorf("Error closing ticket database: %v", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		} else {
 			dm.logger.Info("Ticket database connection closed")
 		}
 	}
 
-	// Close machine database connection
 	if dm.MachineDB != nil {
-		machineErr = dm.MachineDB.Close()
-		if machineErr != nil {
-			dm.logger.Errorf("Error closing machine database: %v", machineErr)
+		if err := dm.MachineDB.Close(); err != nil {
+			dm.logger.Errorf("Error closing machine database: %v", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		} else {
 			dm.logger.Info("Machine database connection closed")
 		}
 	}
 
-	// Return first error encountered, if any
-	if ticketErr != nil {
-		return ticketErr
+	if dm.TokenDB != nil {
+		if err := dm.TokenDB.Close(); err != nil {
+			dm.logger.Errorf("Error closing token database: %v", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		} else {
+			dm.logger.Info("Token database connection closed")
+		}
 	}
-	return machineErr
+
+	return firstErr
 }
 
-// HealthCheck verifies that both database connections are alive
-// Returns error if either database is unreachable
-// Used by health check endpoint to monitor database status
-func (dm *DBManager) HealthCheck() error {
-	// Check ticket database
-	if err := dm.TicketDB.Ping(); err != nil {
-		return fmt.Errorf("ticket database health check failed: %w", err)
-	}
+// DatabaseHealth holds the real-time health status of each database connection
+type DatabaseHealth struct {
+	TicketDB  string `json:"ticket_database"`
+	MachineDB string `json:"machine_database"`
+	TokenDB   string `json:"token_database"`
+}
 
-	// Check machine database
-	if err := dm.MachineDB.Ping(); err != nil {
-		return fmt.Errorf("machine database health check failed: %w", err)
+// HealthCheck pings all databases in real-time and returns their current status.
+// If a database was unavailable at startup but has since come online, this will
+// reflect the updated status.
+func (dm *DBManager) HealthCheck() *DatabaseHealth {
+	return &DatabaseHealth{
+		TicketDB:  checkDB(dm.TicketDB),
+		MachineDB: checkDB(dm.MachineDB),
+		TokenDB:   checkDB(dm.TokenDB),
 	}
+}
 
-	return nil
+// checkDB pings a single database and returns its status string
+func checkDB(db *sql.DB) string {
+	if db == nil {
+		return "not configured"
+	}
+	if err := db.Ping(); err != nil {
+		return fmt.Sprintf("disconnected: %v", err)
+	}
+	return "connected"
 }

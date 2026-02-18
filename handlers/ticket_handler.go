@@ -26,16 +26,28 @@ func NewTicketHandler(service *service.TicketService, logger *logrus.Logger) *Ti
 
 // GetAll handles GET /api/tickets - retrieves all tickets
 // @Summary Get all tickets
-// @Description Retrieve all tickets from the system
+// @Description Retrieve all tickets from the system. Supports pagination via query params.
 // @Tags Tickets
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
+// @Param page query int false "Page number (default: all results)" minimum(1)
+// @Param page_size query int false "Items per page (default: 100, max: 500)" minimum(1) maximum(500)
 // @Success 200 {object} models.TicketListResponse "List of tickets retrieved successfully"
-// @Failure 500 {object} models.TicketListResponse "Internal server error"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /tickets [get]
 func (h *TicketHandler) GetAll(c *gin.Context) {
-	tickets, err := h.service.GetAllTickets()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "100"))
+
+	if pageSize > 500 {
+		pageSize = 500
+	}
+	if pageSize < 1 {
+		pageSize = 100
+	}
+
+	tickets, total, err := h.service.GetAllTickets(page, pageSize)
 	if err != nil {
 		h.logger.Errorf("Error fetching tickets: %v", err)
 		c.JSON(http.StatusInternalServerError, models.TicketListResponse{
@@ -47,40 +59,42 @@ func (h *TicketHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.TicketListResponse{
+	resp := models.TicketListResponse{
 		Success: true,
 		Message: "Tickets retrieved successfully",
 		Data:    tickets,
-		Total:   len(tickets),
-	})
+		Total:   total,
+	}
+
+	if page > 0 {
+		resp.Page = page
+		resp.PageSize = pageSize
+		totalPages := total / pageSize
+		if total%pageSize > 0 {
+			totalPages++
+		}
+		resp.TotalPages = totalPages
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
-// GetByID handles GET /api/tickets/:id - retrieves a ticket by ID
-// @Summary Get ticket by ID
-// @Description Retrieve a specific ticket by its ID
+// GetByID handles GET /api/tickets/:id - retrieves a ticket by terminal ID
+// @Summary Get ticket by terminal ID
+// @Description Retrieve a specific ticket by its terminal ID
 // @Tags Tickets
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param id path int true "Ticket ID"
+// @Param id path string true "Terminal ID"
 // @Success 200 {object} models.TicketResponse "Ticket retrieved successfully"
-// @Failure 400 {object} models.TicketResponse "Invalid ticket ID"
-// @Failure 404 {object} models.TicketResponse "Ticket not found"
+// @Failure 404 {object} models.ErrorResponse "Ticket not found"
 // @Router /tickets/{id} [get]
 func (h *TicketHandler) GetByID(c *gin.Context) {
-	// Parse ID from URL parameter
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.TicketResponse{
-			Success: false,
-			Message: "Invalid ticket ID",
-			Data:    nil,
-		})
-		return
-	}
+	// Parse terminal ID from URL parameter
+	terminalID := c.Param("id")
 
-	ticket, err := h.service.GetTicketByID(id)
+	ticket, err := h.service.GetTicketByID(terminalID)
 	if err != nil {
 		h.logger.Errorf("Error fetching ticket: %v", err)
 		c.JSON(http.StatusNotFound, models.TicketResponse{
@@ -107,7 +121,7 @@ func (h *TicketHandler) GetByID(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Param number path string true "Ticket Number"
 // @Success 200 {object} models.TicketResponse "Ticket retrieved successfully"
-// @Failure 404 {object} models.TicketResponse "Ticket not found"
+// @Failure 404 {object} models.ErrorResponse "Ticket not found"
 // @Router /tickets/number/{number} [get]
 func (h *TicketHandler) GetByNumber(c *gin.Context) {
 	ticketNumber := c.Param("number")
@@ -139,9 +153,9 @@ func (h *TicketHandler) GetByNumber(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Param ticket body models.TicketCreateRequest true "Ticket creation data"
 // @Success 201 {object} models.TicketResponse "Ticket created successfully"
-// @Failure 400 {object} models.TicketResponse "Invalid request data"
-// @Failure 409 {object} models.TicketResponse "Ticket number already exists"
-// @Failure 500 {object} models.TicketResponse "Internal server error"
+// @Failure 400 {object} models.ErrorResponse "Invalid request data"
+// @Failure 409 {object} models.ErrorResponse "Ticket number already exists"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /tickets [post]
 func (h *TicketHandler) Create(c *gin.Context) {
 	var req models.TicketCreateRequest
@@ -188,29 +202,20 @@ func (h *TicketHandler) Create(c *gin.Context) {
 
 // Update handles PUT /api/tickets/:id - updates an existing ticket
 // @Summary Update a ticket
-// @Description Update an existing ticket by ID
+// @Description Update an existing ticket by terminal ID
 // @Tags Tickets
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param id path int true "Ticket ID"
+// @Param id path string true "Terminal ID"
 // @Param ticket body models.TicketUpdateRequest true "Ticket update data"
 // @Success 200 {object} models.TicketResponse "Ticket updated successfully"
-// @Failure 400 {object} models.TicketResponse "Invalid request data"
-// @Failure 500 {object} models.TicketResponse "Internal server error"
+// @Failure 400 {object} models.ErrorResponse "Invalid request data"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /tickets/{id} [put]
 func (h *TicketHandler) Update(c *gin.Context) {
-	// Parse ID from URL parameter
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.TicketResponse{
-			Success: false,
-			Message: "Invalid ticket ID",
-			Data:    nil,
-		})
-		return
-	}
+	// Parse terminal ID from URL parameter
+	terminalID := c.Param("id")
 
 	var req models.TicketUpdateRequest
 
@@ -225,7 +230,7 @@ func (h *TicketHandler) Update(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.service.UpdateTicket(id, &req)
+	ticket, err := h.service.UpdateTicket(terminalID, &req)
 	if err != nil {
 		h.logger.Errorf("Error updating ticket: %v", err)
 		c.JSON(http.StatusInternalServerError, models.TicketResponse{
@@ -250,9 +255,9 @@ func (h *TicketHandler) Update(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param status path string true "Ticket Status" Enums(Open, InProgress, Pending, Resolved)
+// @Param status path string true "Ticket Status" Enums(0.NEW, 1.Req FD ke HD, 2.Kirim FLM, 21.Req Replenish, 3.SLM, 4.SLM-Net, 5.Menunggu Update, 6.Follow-up Sales team, 8.Wait transaction)
 // @Success 200 {object} models.TicketListResponse "Tickets retrieved successfully"
-// @Failure 500 {object} models.TicketListResponse "Internal server error"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /tickets/status/{status} [get]
 func (h *TicketHandler) GetByStatus(c *gin.Context) {
 	status := c.Param("status")
@@ -286,7 +291,7 @@ func (h *TicketHandler) GetByStatus(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Param terminal_id path string true "Terminal ID"
 // @Success 200 {object} models.TicketListResponse "Tickets retrieved successfully"
-// @Failure 500 {object} models.TicketListResponse "Internal server error"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
 // @Router /tickets/terminal/{terminal_id} [get]
 func (h *TicketHandler) GetByTerminal(c *gin.Context) {
 	terminalID := c.Param("terminal_id")
@@ -309,4 +314,30 @@ func (h *TicketHandler) GetByTerminal(c *gin.Context) {
 		Data:    tickets,
 		Total:   len(tickets),
 	})
+}
+
+// GetMetadata handles GET /api/tickets/metadata - retrieves valid values for ticket fields
+// @Summary Get ticket metadata
+// @Description Retrieve all valid values for ticket status, mode, and priority fields from the database
+// @Description Values are cached for 1 hour for performance. New values automatically appear after cache refresh.
+// @Tags Tickets
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} models.MetadataResponse "Metadata retrieved successfully"
+// @Failure 500 {object} models.ErrorResponse "Internal server error"
+// @Router /tickets/metadata [get]
+func (h *TicketHandler) GetMetadata(c *gin.Context) {
+	metadata, err := h.service.GetMetadata()
+	if err != nil {
+		h.logger.Errorf("Error fetching metadata: %v", err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Message: "Failed to fetch metadata",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, metadata)
 }

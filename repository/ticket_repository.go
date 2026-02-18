@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -25,42 +24,84 @@ func NewTicketRepository(db *sql.DB, logger *logrus.Logger) *TicketRepository {
 	}
 }
 
-// GetAll retrieves all open tickets from the database
-// Returns a slice of OpenTicket and any error encountered
-func (r *TicketRepository) GetAll() ([]*models.OpenTicket, error) {
-	query := `
-		SELECT
-			id, ticket_number, terminal_id, description, priority,
-			status, category, reported_by, assigned_to, created_at,
-			updated_at, resolved_at, resolution_notes
-		FROM dbo.open_ticket
-		ORDER BY created_at DESC
-	`
+// GetAll retrieves tickets with pagination support.
+// If page <= 0, returns all tickets (backwards compatible).
+func (r *TicketRepository) GetAll(page, pageSize int) ([]*models.OpenTicket, int, error) {
+	// Get total count
+	var total int
+	countErr := r.db.QueryRow("SELECT COUNT(*) FROM dbo.open_ticket").Scan(&total)
+	if countErr != nil {
+		r.logger.Errorf("Failed to count tickets: %v", countErr)
+		return nil, 0, fmt.Errorf("failed to count tickets: %w", countErr)
+	}
 
-	rows, err := r.db.Query(query)
+	var query string
+	var rows *sql.Rows
+	var err error
+
+	if page > 0 && pageSize > 0 {
+		offset := (page - 1) * pageSize
+		query = `
+			SELECT
+				[Terminal ID], [Terminal Name], [Priority], [Mode],
+				[Initial Problem], [Current Problem], [P-Duration],
+				[Incident start datetime], [Count], [Status], [Remarks],
+				[Balance], [Condition], [Tickets no], [Tickets duration],
+				[Open time], [Close time], [Problem History], [Mode History],
+				[DSP FLM], [DSP SLM], [Last Withdrawal], [Export Name]
+			FROM dbo.open_ticket
+			ORDER BY [Incident start datetime] DESC
+			OFFSET @p1 ROWS FETCH NEXT @p2 ROWS ONLY
+		`
+		rows, err = r.db.Query(query, offset, pageSize)
+	} else {
+		query = `
+			SELECT
+				[Terminal ID], [Terminal Name], [Priority], [Mode],
+				[Initial Problem], [Current Problem], [P-Duration],
+				[Incident start datetime], [Count], [Status], [Remarks],
+				[Balance], [Condition], [Tickets no], [Tickets duration],
+				[Open time], [Close time], [Problem History], [Mode History],
+				[DSP FLM], [DSP SLM], [Last Withdrawal], [Export Name]
+			FROM dbo.open_ticket
+			ORDER BY [Incident start datetime] DESC
+		`
+		rows, err = r.db.Query(query)
+	}
+
 	if err != nil {
 		r.logger.Errorf("Failed to query tickets: %v", err)
-		return nil, fmt.Errorf("failed to query tickets: %w", err)
+		return nil, 0, fmt.Errorf("failed to query tickets: %w", err)
 	}
 	defer rows.Close()
 
-	tickets := make([]*models.OpenTicket, 0)
+	tickets := make([]*models.OpenTicket, 0, pageSize)
 	for rows.Next() {
 		ticket := &models.OpenTicket{}
 		err := rows.Scan(
-			&ticket.ID,
-			&ticket.TicketNumber,
 			&ticket.TerminalID,
-			&ticket.Description,
+			&ticket.TerminalName,
 			&ticket.Priority,
+			&ticket.Mode,
+			&ticket.InitialProblem,
+			&ticket.CurrentProblem,
+			&ticket.PDuration,
+			&ticket.IncidentStartTime,
+			&ticket.Count,
 			&ticket.Status,
-			&ticket.Category,
-			&ticket.ReportedBy,
-			&ticket.AssignedTo,
-			&ticket.CreatedAt,
-			&ticket.UpdatedAt,
-			&ticket.ResolvedAt,
-			&ticket.ResolutionNotes,
+			&ticket.Remarks,
+			&ticket.Balance,
+			&ticket.Condition,
+			&ticket.TicketsNo,
+			&ticket.TicketsDuration,
+			&ticket.OpenTime,
+			&ticket.CloseTime,
+			&ticket.ProblemHistory,
+			&ticket.ModeHistory,
+			&ticket.DSPFLM,
+			&ticket.DSPSLM,
+			&ticket.LastWithdrawal,
+			&ticket.ExportName,
 		)
 		if err != nil {
 			r.logger.Errorf("Failed to scan ticket row: %v", err)
@@ -70,45 +111,58 @@ func (r *TicketRepository) GetAll() ([]*models.OpenTicket, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating ticket rows: %w", err)
+		return nil, 0, fmt.Errorf("error iterating ticket rows: %w", err)
 	}
 
-	return tickets, nil
+	return tickets, total, nil
 }
 
-// GetByID retrieves a single ticket by its ID
-func (r *TicketRepository) GetByID(id int) (*models.OpenTicket, error) {
+// GetByTerminalID retrieves a single ticket by terminal ID
+func (r *TicketRepository) GetByTerminalID(terminalID string) (*models.OpenTicket, error) {
 	query := `
 		SELECT
-			id, ticket_number, terminal_id, description, priority,
-			status, category, reported_by, assigned_to, created_at,
-			updated_at, resolved_at, resolution_notes
+			[Terminal ID], [Terminal Name], [Priority], [Mode],
+			[Initial Problem], [Current Problem], [P-Duration],
+			[Incident start datetime], [Count], [Status], [Remarks],
+			[Balance], [Condition], [Tickets no], [Tickets duration],
+			[Open time], [Close time], [Problem History], [Mode History],
+			[DSP FLM], [DSP SLM], [Last Withdrawal], [Export Name]
 		FROM dbo.open_ticket
-		WHERE id = @p1
+		WHERE [Terminal ID] = @p1
 	`
 
 	ticket := &models.OpenTicket{}
-	err := r.db.QueryRow(query, id).Scan(
-		&ticket.ID,
-		&ticket.TicketNumber,
+	err := r.db.QueryRow(query, terminalID).Scan(
 		&ticket.TerminalID,
-		&ticket.Description,
+		&ticket.TerminalName,
 		&ticket.Priority,
+		&ticket.Mode,
+		&ticket.InitialProblem,
+		&ticket.CurrentProblem,
+		&ticket.PDuration,
+		&ticket.IncidentStartTime,
+		&ticket.Count,
 		&ticket.Status,
-		&ticket.Category,
-		&ticket.ReportedBy,
-		&ticket.AssignedTo,
-		&ticket.CreatedAt,
-		&ticket.UpdatedAt,
-		&ticket.ResolvedAt,
-		&ticket.ResolutionNotes,
+		&ticket.Remarks,
+		&ticket.Balance,
+		&ticket.Condition,
+		&ticket.TicketsNo,
+		&ticket.TicketsDuration,
+		&ticket.OpenTime,
+		&ticket.CloseTime,
+		&ticket.ProblemHistory,
+		&ticket.ModeHistory,
+		&ticket.DSPFLM,
+		&ticket.DSPSLM,
+		&ticket.LastWithdrawal,
+		&ticket.ExportName,
 	)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("ticket not found")
 	}
 	if err != nil {
-		r.logger.Errorf("Failed to get ticket by ID: %v", err)
+		r.logger.Errorf("Failed to get ticket by terminal ID: %v", err)
 		return nil, fmt.Errorf("failed to get ticket: %w", err)
 	}
 
@@ -119,28 +173,41 @@ func (r *TicketRepository) GetByID(id int) (*models.OpenTicket, error) {
 func (r *TicketRepository) GetByTicketNumber(ticketNumber string) (*models.OpenTicket, error) {
 	query := `
 		SELECT
-			id, ticket_number, terminal_id, description, priority,
-			status, category, reported_by, assigned_to, created_at,
-			updated_at, resolved_at, resolution_notes
+			[Terminal ID], [Terminal Name], [Priority], [Mode],
+			[Initial Problem], [Current Problem], [P-Duration],
+			[Incident start datetime], [Count], [Status], [Remarks],
+			[Balance], [Condition], [Tickets no], [Tickets duration],
+			[Open time], [Close time], [Problem History], [Mode History],
+			[DSP FLM], [DSP SLM], [Last Withdrawal], [Export Name]
 		FROM dbo.open_ticket
-		WHERE ticket_number = @p1
+		WHERE [Tickets no] = @p1
 	`
 
 	ticket := &models.OpenTicket{}
 	err := r.db.QueryRow(query, ticketNumber).Scan(
-		&ticket.ID,
-		&ticket.TicketNumber,
 		&ticket.TerminalID,
-		&ticket.Description,
+		&ticket.TerminalName,
 		&ticket.Priority,
+		&ticket.Mode,
+		&ticket.InitialProblem,
+		&ticket.CurrentProblem,
+		&ticket.PDuration,
+		&ticket.IncidentStartTime,
+		&ticket.Count,
 		&ticket.Status,
-		&ticket.Category,
-		&ticket.ReportedBy,
-		&ticket.AssignedTo,
-		&ticket.CreatedAt,
-		&ticket.UpdatedAt,
-		&ticket.ResolvedAt,
-		&ticket.ResolutionNotes,
+		&ticket.Remarks,
+		&ticket.Balance,
+		&ticket.Condition,
+		&ticket.TicketsNo,
+		&ticket.TicketsDuration,
+		&ticket.OpenTime,
+		&ticket.CloseTime,
+		&ticket.ProblemHistory,
+		&ticket.ModeHistory,
+		&ticket.DSPFLM,
+		&ticket.DSPSLM,
+		&ticket.LastWithdrawal,
+		&ticket.ExportName,
 	)
 
 	if err == sql.ErrNoRows {
@@ -155,38 +222,31 @@ func (r *TicketRepository) GetByTicketNumber(ticketNumber string) (*models.OpenT
 }
 
 // Create inserts a new ticket into the database
-// Returns the created ticket with populated ID and timestamps
 func (r *TicketRepository) Create(req *models.TicketCreateRequest) (*models.OpenTicket, error) {
 	query := `
 		INSERT INTO dbo.open_ticket
-		(ticket_number, terminal_id, description, priority, status, category, reported_by, assigned_to, created_at, updated_at)
-		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10);
-		SELECT SCOPE_IDENTITY();
+		([Terminal ID], [Terminal Name], [Priority], [Mode], [Initial Problem],
+		 [Current Problem], [P-Duration], [Incident start datetime], [Status],
+		 [Remarks], [Condition], [Tickets no], [Export Name])
+		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13)
 	`
 
-	now := time.Now()
-	status := "Open" // Default status for new tickets
-
-	var assignedTo sql.NullString
-	if req.AssignedTo != "" {
-		assignedTo = sql.NullString{String: req.AssignedTo, Valid: true}
-	}
-
-	// Execute insert and get the new ID
-	var newID int64
-	err := r.db.QueryRow(
+	_, err := r.db.Exec(
 		query,
-		req.TicketNumber,
 		req.TerminalID,
-		req.Description,
+		req.TerminalName,
 		req.Priority,
-		status,
-		req.Category,
-		req.ReportedBy,
-		assignedTo,
-		now,
-		now,
-	).Scan(&newID)
+		req.Mode,
+		req.InitialProblem,
+		req.CurrentProblem,
+		req.PDuration,
+		req.IncidentStartTime,
+		req.Status,
+		req.Remarks,
+		req.Condition,
+		req.TicketsNo,
+		req.ExportName,
+	)
 
 	if err != nil {
 		r.logger.Errorf("Failed to create ticket: %v", err)
@@ -194,68 +254,78 @@ func (r *TicketRepository) Create(req *models.TicketCreateRequest) (*models.Open
 	}
 
 	// Retrieve and return the created ticket
-	return r.GetByID(int(newID))
+	return r.GetByTicketNumber(req.TicketsNo)
 }
 
 // Update modifies an existing ticket
-// Only updates fields that are provided (non-empty)
-func (r *TicketRepository) Update(id int, req *models.TicketUpdateRequest) (*models.OpenTicket, error) {
-	// Build dynamic update query based on provided fields
+func (r *TicketRepository) Update(terminalID string, req *models.TicketUpdateRequest) (*models.OpenTicket, error) {
 	updates := []string{}
 	args := []interface{}{}
 	paramCount := 1
 
-	if req.Status != "" {
-		updates = append(updates, fmt.Sprintf("status = @p%d", paramCount))
-		args = append(args, req.Status)
-		paramCount++
-
-		// If status is Resolved, set resolved_at timestamp
-		if req.Status == "Resolved" {
-			updates = append(updates, fmt.Sprintf("resolved_at = @p%d", paramCount))
-			args = append(args, time.Now())
-			paramCount++
-		}
-	}
-
 	if req.Priority != "" {
-		updates = append(updates, fmt.Sprintf("priority = @p%d", paramCount))
+		updates = append(updates, fmt.Sprintf("[Priority] = @p%d", paramCount))
 		args = append(args, req.Priority)
 		paramCount++
 	}
 
-	if req.AssignedTo != "" {
-		updates = append(updates, fmt.Sprintf("assigned_to = @p%d", paramCount))
-		args = append(args, req.AssignedTo)
+	if req.Mode != "" {
+		updates = append(updates, fmt.Sprintf("[Mode] = @p%d", paramCount))
+		args = append(args, req.Mode)
 		paramCount++
 	}
 
-	if req.Description != "" {
-		updates = append(updates, fmt.Sprintf("description = @p%d", paramCount))
-		args = append(args, req.Description)
+	if req.CurrentProblem != "" {
+		updates = append(updates, fmt.Sprintf("[Current Problem] = @p%d", paramCount))
+		args = append(args, req.CurrentProblem)
 		paramCount++
 	}
 
-	if req.ResolutionNotes != "" {
-		updates = append(updates, fmt.Sprintf("resolution_notes = @p%d", paramCount))
-		args = append(args, req.ResolutionNotes)
+	if req.Status != "" {
+		updates = append(updates, fmt.Sprintf("[Status] = @p%d", paramCount))
+		args = append(args, req.Status)
 		paramCount++
 	}
 
-	// Always update the updated_at timestamp
-	updates = append(updates, fmt.Sprintf("updated_at = @p%d", paramCount))
-	args = append(args, time.Now())
-	paramCount++
+	if req.Remarks != "" {
+		updates = append(updates, fmt.Sprintf("[Remarks] = @p%d", paramCount))
+		args = append(args, req.Remarks)
+		paramCount++
+	}
 
-	// Add ID as the last parameter for WHERE clause
-	args = append(args, id)
+	if req.Condition != "" {
+		updates = append(updates, fmt.Sprintf("[Condition] = @p%d", paramCount))
+		args = append(args, req.Condition)
+		paramCount++
+	}
 
-	if len(updates) == 1 { // Only updated_at was added
+	if req.CloseTime != "" {
+		updates = append(updates, fmt.Sprintf("[Close time] = @p%d", paramCount))
+		args = append(args, req.CloseTime)
+		paramCount++
+	}
+
+	if req.ProblemHistory != "" {
+		updates = append(updates, fmt.Sprintf("[Problem History] = @p%d", paramCount))
+		args = append(args, req.ProblemHistory)
+		paramCount++
+	}
+
+	if req.ModeHistory != "" {
+		updates = append(updates, fmt.Sprintf("[Mode History] = @p%d", paramCount))
+		args = append(args, req.ModeHistory)
+		paramCount++
+	}
+
+	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
 
+	// Add terminal ID as the last parameter
+	args = append(args, terminalID)
+
 	query := fmt.Sprintf(
-		"UPDATE dbo.open_ticket SET %s WHERE id = @p%d",
+		"UPDATE dbo.open_ticket SET %s WHERE [Terminal ID] = @p%d",
 		strings.Join(updates, ", "),
 		paramCount,
 	)
@@ -275,20 +345,22 @@ func (r *TicketRepository) Update(id int, req *models.TicketUpdateRequest) (*mod
 		return nil, fmt.Errorf("ticket not found")
 	}
 
-	// Return the updated ticket
-	return r.GetByID(id)
+	return r.GetByTerminalID(terminalID)
 }
 
 // GetByStatus retrieves all tickets with a specific status
 func (r *TicketRepository) GetByStatus(status string) ([]*models.OpenTicket, error) {
 	query := `
 		SELECT
-			id, ticket_number, terminal_id, description, priority,
-			status, category, reported_by, assigned_to, created_at,
-			updated_at, resolved_at, resolution_notes
+			[Terminal ID], [Terminal Name], [Priority], [Mode],
+			[Initial Problem], [Current Problem], [P-Duration],
+			[Incident start datetime], [Count], [Status], [Remarks],
+			[Balance], [Condition], [Tickets no], [Tickets duration],
+			[Open time], [Close time], [Problem History], [Mode History],
+			[DSP FLM], [DSP SLM], [Last Withdrawal], [Export Name]
 		FROM dbo.open_ticket
-		WHERE status = @p1
-		ORDER BY created_at DESC
+		WHERE [Status] = @p1
+		ORDER BY [Incident start datetime] DESC
 	`
 
 	rows, err := r.db.Query(query, status)
@@ -302,19 +374,29 @@ func (r *TicketRepository) GetByStatus(status string) ([]*models.OpenTicket, err
 	for rows.Next() {
 		ticket := &models.OpenTicket{}
 		err := rows.Scan(
-			&ticket.ID,
-			&ticket.TicketNumber,
 			&ticket.TerminalID,
-			&ticket.Description,
+			&ticket.TerminalName,
 			&ticket.Priority,
+			&ticket.Mode,
+			&ticket.InitialProblem,
+			&ticket.CurrentProblem,
+			&ticket.PDuration,
+			&ticket.IncidentStartTime,
+			&ticket.Count,
 			&ticket.Status,
-			&ticket.Category,
-			&ticket.ReportedBy,
-			&ticket.AssignedTo,
-			&ticket.CreatedAt,
-			&ticket.UpdatedAt,
-			&ticket.ResolvedAt,
-			&ticket.ResolutionNotes,
+			&ticket.Remarks,
+			&ticket.Balance,
+			&ticket.Condition,
+			&ticket.TicketsNo,
+			&ticket.TicketsDuration,
+			&ticket.OpenTime,
+			&ticket.CloseTime,
+			&ticket.ProblemHistory,
+			&ticket.ModeHistory,
+			&ticket.DSPFLM,
+			&ticket.DSPSLM,
+			&ticket.LastWithdrawal,
+			&ticket.ExportName,
 		)
 		if err != nil {
 			r.logger.Errorf("Failed to scan ticket row: %v", err)
@@ -326,49 +408,90 @@ func (r *TicketRepository) GetByStatus(status string) ([]*models.OpenTicket, err
 	return tickets, nil
 }
 
-// GetByTerminalID retrieves all tickets for a specific terminal
-func (r *TicketRepository) GetByTerminalID(terminalID string) ([]*models.OpenTicket, error) {
+// GetDistinctStatuses retrieves all unique status values from the database
+// This provides a truly adaptive list of what statuses are actually in use
+func (r *TicketRepository) GetDistinctStatuses() ([]string, error) {
 	query := `
-		SELECT
-			id, ticket_number, terminal_id, description, priority,
-			status, category, reported_by, assigned_to, created_at,
-			updated_at, resolved_at, resolution_notes
+		SELECT DISTINCT [Status]
 		FROM dbo.open_ticket
-		WHERE terminal_id = @p1
-		ORDER BY created_at DESC
+		WHERE [Status] IS NOT NULL AND [Status] != ''
+		ORDER BY [Status]
 	`
 
-	rows, err := r.db.Query(query, terminalID)
+	rows, err := r.db.Query(query)
 	if err != nil {
-		r.logger.Errorf("Failed to query tickets by terminal: %v", err)
-		return nil, fmt.Errorf("failed to query tickets: %w", err)
+		r.logger.Errorf("Failed to query distinct statuses: %v", err)
+		return nil, fmt.Errorf("failed to query statuses: %w", err)
 	}
 	defer rows.Close()
 
-	tickets := make([]*models.OpenTicket, 0)
+	statuses := []string{}
 	for rows.Next() {
-		ticket := &models.OpenTicket{}
-		err := rows.Scan(
-			&ticket.ID,
-			&ticket.TicketNumber,
-			&ticket.TerminalID,
-			&ticket.Description,
-			&ticket.Priority,
-			&ticket.Status,
-			&ticket.Category,
-			&ticket.ReportedBy,
-			&ticket.AssignedTo,
-			&ticket.CreatedAt,
-			&ticket.UpdatedAt,
-			&ticket.ResolvedAt,
-			&ticket.ResolutionNotes,
-		)
-		if err != nil {
-			r.logger.Errorf("Failed to scan ticket row: %v", err)
+		var status string
+		if err := rows.Scan(&status); err != nil {
+			r.logger.Errorf("Failed to scan status: %v", err)
 			continue
 		}
-		tickets = append(tickets, ticket)
+		statuses = append(statuses, status)
 	}
 
-	return tickets, nil
+	return statuses, nil
+}
+
+// GetDistinctModes retrieves all unique mode values from the database
+func (r *TicketRepository) GetDistinctModes() ([]string, error) {
+	query := `
+		SELECT DISTINCT [Mode]
+		FROM dbo.open_ticket
+		WHERE [Mode] IS NOT NULL AND [Mode] != ''
+		ORDER BY [Mode]
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		r.logger.Errorf("Failed to query distinct modes: %v", err)
+		return nil, fmt.Errorf("failed to query modes: %w", err)
+	}
+	defer rows.Close()
+
+	modes := []string{}
+	for rows.Next() {
+		var mode string
+		if err := rows.Scan(&mode); err != nil {
+			r.logger.Errorf("Failed to scan mode: %v", err)
+			continue
+		}
+		modes = append(modes, mode)
+	}
+
+	return modes, nil
+}
+
+// GetDistinctPriorities retrieves all unique priority values from the database
+func (r *TicketRepository) GetDistinctPriorities() ([]string, error) {
+	query := `
+		SELECT DISTINCT [Priority]
+		FROM dbo.open_ticket
+		WHERE [Priority] IS NOT NULL AND [Priority] != ''
+		ORDER BY [Priority]
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		r.logger.Errorf("Failed to query distinct priorities: %v", err)
+		return nil, fmt.Errorf("failed to query priorities: %w", err)
+	}
+	defer rows.Close()
+
+	priorities := []string{}
+	for rows.Next() {
+		var priority string
+		if err := rows.Scan(&priority); err != nil {
+			r.logger.Errorf("Failed to scan priority: %v", err)
+			continue
+		}
+		priorities = append(priorities, priority)
+	}
+
+	return priorities, nil
 }

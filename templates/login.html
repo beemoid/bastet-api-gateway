@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="corporate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Gateway - Admin Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { min-height: 100vh; }
+    </style>
+</head>
+<body class="bg-base-200">
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="card w-96 bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <h1 class="text-2xl font-bold">API Gateway</h1>
+                    <p class="text-sm text-base-content/60">Token Management Dashboard</p>
+                </div>
+
+                <div id="alert" class="alert alert-error hidden mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="alertMessage"></span>
+                </div>
+
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-control mb-4">
+                        <label class="label"><span class="label-text">Username</span></label>
+                        <input type="text" id="username" name="username" placeholder="Enter username"
+                               class="input input-bordered w-full" required autofocus />
+                    </div>
+
+                    <div class="form-control mb-6">
+                        <label class="label"><span class="label-text">Password</span></label>
+                        <input type="password" id="password" name="password" placeholder="Enter password"
+                               class="input input-bordered w-full" required />
+                    </div>
+
+                    <button type="submit" id="loginBtn" class="btn btn-primary w-full">
+                        <span id="loginText">Sign In</span>
+                        <span id="loginLoading" class="loading loading-spinner loading-sm hidden"></span>
+                    </button>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p class="text-xs text-base-content/40">Default: admin / admin123</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if already logged in
+        const sessionToken = localStorage.getItem('session_token');
+        if (sessionToken) {
+            window.location.href = '/admin/dashboard';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const text = document.getElementById('loginText');
+            const loading = document.getElementById('loginLoading');
+            const alert = document.getElementById('alert');
+            const alertMsg = document.getElementById('alertMessage');
+
+            btn.disabled = true;
+            text.textContent = 'Signing in...';
+            loading.classList.remove('hidden');
+            alert.classList.add('hidden');
+
+            try {
+                const resp = await fetch('/api/v1/admin/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (data.success) {
+                    localStorage.setItem('session_token', data.session_token);
+                    localStorage.setItem('admin_user', JSON.stringify(data.user));
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    alertMsg.textContent = data.message || 'Login failed';
+                    alert.classList.remove('hidden');
+                }
+            } catch (err) {
+                alertMsg.textContent = 'Connection error. Please try again.';
+                alert.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                text.textContent = 'Sign In';
+                loading.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

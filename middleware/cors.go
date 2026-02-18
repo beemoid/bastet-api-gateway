@@ -17,13 +17,15 @@ func CORS() gin.HandlerFunc {
 		// Allow common HTTP methods
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 
-		// Allow common headers plus custom API key header
+		// Allow common headers plus custom auth headers
 		AllowHeaders: []string{
 			"Origin",
 			"Content-Type",
 			"Accept",
 			"Authorization",
 			"X-API-Key",
+			"X-API-Token",
+			"X-Session-Token",
 		},
 
 		// Expose custom headers to the client
