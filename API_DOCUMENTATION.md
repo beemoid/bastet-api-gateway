@@ -2,43 +2,68 @@
 
 ## Overview
 
-This API Gateway serves as middleware between on-premise databases (ticket_master and machine_master) and cloud applications, providing a secure and standardized REST API for ATM monitoring and ticket management.
+This API Gateway serves as middleware between on-premise databases (ticket_master, machine_master, and token_management) and cloud applications, providing a secure and standardized REST API for ATM monitoring, ticket management, and token-based access control.
 
 **Base URL:** `http://localhost:8080`
 **API Version:** v1
 **API Prefix:** `/api/v1`
 **Swagger UI:** `http://localhost:8080/swagger/index.html`
+**Admin Dashboard:** `http://localhost:8080/admin`
 
 ---
 
 ## Key Features
 
-✅ **Hybrid Adaptive Metadata System** - Automatically discovers new field values from database
-✅ **Intelligent Caching** - 1-hour cache for optimal performance
-✅ **Thread-Safe Operations** - Production-ready concurrent request handling
-✅ **Comprehensive Error Handling** - Standardized error responses
-✅ **Real-time Database Queries** - Always up-to-date with actual data
+- **Hybrid Adaptive Metadata System** - Automatically discovers new field values from database
+- **Intelligent Caching** - 1-hour cache for optimal performance
+- **Thread-Safe Operations** - Production-ready concurrent request handling
+- **Comprehensive Error Handling** - Standardized error responses
+- **Real-time Database Queries** - Always up-to-date with actual data
+- **Token Management System** - Scoped API tokens with rate limiting, IP whitelisting, and expiration
+- **Admin Dashboard** - Web UI for managing tokens, viewing analytics, and audit logs
+- **Gzip Compression** - Automatic response compression for reduced bandwidth
+- **Analytics & Monitoring** - Dashboard stats, endpoint analytics, daily usage tracking
+- **Audit Logging** - Complete history of all administrative actions
 
 ---
 
 ## Authentication
 
-All API endpoints (except health checks and Swagger documentation) require authentication using an API key.
+The API supports two authentication methods for `/api/v1` endpoints.
 
-**Header Required:**
+### API Token (Recommended)
+
+Token-based authentication with scopes, rate limiting, usage tracking, and expiration. Tokens are created and managed via the admin dashboard or admin API.
+
+**Header:**
+```
+X-API-Token: tok_live_abc123xyz456
+```
+
+**Features:**
+- Scoped permissions
+- Configurable rate limits (per minute, hour, day)
+- IP whitelisting (optional)
+- Token expiration dates
+- Usage analytics and audit logging
+- Token revocation support
+
+### API Key (Legacy)
+
+Simple key-based authentication using a shared secret configured in `.env`.
+
+**Header:**
 ```
 X-API-Key: your_api_key_here
 ```
 
-**Example:**
-```bash
-curl -H "X-API-Key: your_api_key" http://localhost:8080/api/v1/tickets
-```
+**Note:** Health checks (`/health`, `/ping`), Swagger docs (`/swagger/*`), and admin dashboard pages (`/admin/*`) do not require authentication.
 
 **Configuration:**
-Set your API key in the `.env` file:
-```
+Set your credentials in the `.env` file:
+```env
 API_KEY=your_secure_api_key_here
+JWT_SECRET=your_jwt_secret_key
 ```
 
 ---
@@ -73,7 +98,7 @@ All API responses follow a standardized format for consistency.
 ### 1. Health Check Endpoints
 
 #### 1.1 Health Check
-Check the overall health of the API and database connections.
+Check the overall health of the API and all database connections.
 
 **Endpoint:** `GET /health`
 **Authentication:** Not required
@@ -85,7 +110,8 @@ Check the overall health of the API and database connections.
   "message": "API Gateway is running",
   "services": {
     "ticket_database": "connected",
-    "machine_database": "connected"
+    "machine_database": "connected",
+    "token_database": "connected"
   }
 }
 ```
@@ -243,17 +269,17 @@ Retrieve all tickets associated with a specific terminal.
 
 **Response:** Same as Get All Tickets (filtered list)
 
-#### 2.6 Get Ticket Metadata ⭐ NEW - Adaptive System
+#### 2.6 Get Ticket Metadata - Adaptive System
 Retrieve all valid values for ticket fields directly from the database.
 
 **Endpoint:** `GET /api/v1/tickets/metadata`
 **Authentication:** Required
 
 **Features:**
-- ✅ **Fully Adaptive** - Automatically discovers new values from database
-- ✅ **Cached for Performance** - Results cached for 1 hour
-- ✅ **Self-Documenting** - Shows which values are documented
-- ✅ **Real-time Accuracy** - Always reflects actual database content
+- Fully adaptive - automatically discovers new values from database
+- Cached for performance - results cached for 1 hour
+- Self-documenting - shows which values are documented
+- Real-time accuracy - always reflects actual database content
 
 **Response (200 OK):**
 ```json
@@ -268,11 +294,6 @@ Retrieve all valid values for ticket fields directly from the database.
       "is_documented": true
     },
     {
-      "code": "1.Req FD ke HD",
-      "description": "Request FD to HD",
-      "is_documented": true
-    },
-    {
       "code": "9.Emergency",
       "description": "9.Emergency",
       "is_documented": false
@@ -283,47 +304,12 @@ Retrieve all valid values for ticket fields directly from the database.
       "code": "Closed",
       "description": "Terminal is closed",
       "is_documented": true
-    },
-    {
-      "code": "In Service",
-      "description": "Terminal is in service",
-      "is_documented": true
-    },
-    {
-      "code": "nan",
-      "description": "No mode data available",
-      "is_documented": true
-    },
-    {
-      "code": "Off-line",
-      "description": "Terminal is offline",
-      "is_documented": true
-    },
-    {
-      "code": "Supervisor",
-      "description": "Supervisor mode",
-      "is_documented": true
     }
   ],
   "priorities": [
     {
       "code": "1.High",
       "description": "High priority",
-      "is_documented": true
-    },
-    {
-      "code": "2.Middle",
-      "description": "Middle priority",
-      "is_documented": true
-    },
-    {
-      "code": "3.Low",
-      "description": "Low priority",
-      "is_documented": true
-    },
-    {
-      "code": "4.Minimum",
-      "description": "Minimum priority",
       "is_documented": true
     }
   ]
@@ -556,17 +542,17 @@ GET /api/v1/machines/search?status=Active&province=DKI Jakarta&city_regency=Jaka
 
 **Response:** Same as Get All Machines (filtered list)
 
-#### 3.6 Get Machine Metadata ⭐ NEW - Adaptive System
+#### 3.6 Get Machine Metadata - Adaptive System
 Retrieve all valid values for machine fields directly from the database.
 
 **Endpoint:** `GET /api/v1/machines/metadata`
 **Authentication:** Required
 
 **Features:**
-- ✅ **Fully Adaptive** - Automatically discovers new values from database
-- ✅ **Cached for Performance** - Results cached for 1 hour
-- ✅ **Geographic Mapping** - FLM providers mapped to service areas
-- ✅ **Real-time Accuracy** - Always reflects actual database content
+- Fully adaptive - automatically discovers new values from database
+- Cached for performance - results cached for 1 hour
+- Geographic mapping - FLM providers mapped to service areas
+- Real-time accuracy - always reflects actual database content
 
 **Response (200 OK):**
 ```json
@@ -579,16 +565,6 @@ Retrieve all valid values for machine fields directly from the database.
       "code": "KGP - WINCOR DW",
       "description": "KGP - WINCOR DW",
       "is_documented": true
-    },
-    {
-      "code": "GPS - NCR",
-      "description": "GPS - NCR",
-      "is_documented": true
-    },
-    {
-      "code": "NCR",
-      "description": "NCR",
-      "is_documented": true
     }
   ],
   "flms": [
@@ -597,18 +573,6 @@ Retrieve all valid values for machine fields directly from the database.
       "description": "AVT - BANDUNG",
       "area": "BANDUNG",
       "is_documented": true
-    },
-    {
-      "code": "AVT - JAKARTA",
-      "description": "AVT - JAKARTA",
-      "area": "JAKARTA",
-      "is_documented": true
-    },
-    {
-      "code": "BRS - SURABAYA",
-      "description": "BRS - SURABAYA",
-      "area": "SURABAYA",
-      "is_documented": true
     }
   ],
   "nets": [
@@ -616,42 +580,12 @@ Retrieve all valid values for machine fields directly from the database.
       "code": "NOSAIRIS",
       "description": "NOSAIRIS",
       "is_documented": true
-    },
-    {
-      "code": "SMS",
-      "description": "SMS",
-      "is_documented": true
-    },
-    {
-      "code": "TANGARA",
-      "description": "TANGARA",
-      "is_documented": true
-    },
-    {
-      "code": "IFORTE",
-      "description": "IFORTE",
-      "is_documented": true
     }
   ],
   "flm_names": [
     {
       "code": "AVT",
       "description": "AVT",
-      "is_documented": true
-    },
-    {
-      "code": "ABS",
-      "description": "ABS",
-      "is_documented": true
-    },
-    {
-      "code": "BRS",
-      "description": "BRS",
-      "is_documented": true
-    },
-    {
-      "code": "TAG",
-      "description": "TAG",
       "is_documented": true
     }
   ]
@@ -710,6 +644,485 @@ Update the operational status of a machine.
 
 ---
 
+### 4. Admin Authentication Endpoints
+
+Admin endpoints use session-based authentication. Login to receive a session token, then pass it via the `X-Session-Token` header or `session_token` cookie.
+
+#### 4.1 Admin Login
+Authenticate an admin user and receive a session token.
+
+**Endpoint:** `POST /api/v1/admin/auth/login`
+**Authentication:** Not required
+
+**Request Body:**
+```json
+{
+  "username": "admin",
+  "password": "your_password"
+}
+```
+
+**Field Validation:**
+- `username` (required, string, min 3 chars)
+- `password` (required, string, min 6 chars)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "session_token": "sess_abc123xyz456",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "full_name": "Administrator",
+    "role": "super_admin",
+    "is_active": true,
+    "last_login_at": "2024-01-15T10:30:00Z",
+    "created_at": "2024-01-01T00:00:00Z"
+  },
+  "expires_at": "2024-01-16T10:30:00Z"
+}
+```
+
+**Response (401 Unauthorized):**
+```json
+{
+  "success": false,
+  "message": "Invalid credentials"
+}
+```
+
+**Note:** The session token is also set as an HTTP-only cookie (`session_token`).
+
+#### 4.2 Admin Logout
+Invalidate the current admin session.
+
+**Endpoint:** `POST /api/v1/admin/auth/logout`
+**Authentication:** Session token (header or cookie)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+#### 4.3 Get Current User
+Get details of the currently logged-in admin.
+
+**Endpoint:** `GET /api/v1/admin/auth/me`
+**Authentication:** Session token required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "admin",
+    "role": "super_admin"
+  }
+}
+```
+
+---
+
+### 5. Token Management Endpoints
+
+All token management endpoints require admin session authentication via `X-Session-Token` header or `session_token` cookie.
+
+#### 5.1 List All Tokens
+Retrieve all API tokens (token values are masked).
+
+**Endpoint:** `GET /api/v1/admin/tokens`
+**Authentication:** Admin session required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Tokens retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "token": "tok_****xyz4",
+      "name": "Production App",
+      "description": "Main production API token",
+      "token_prefix": "tok",
+      "scopes": "[\"tickets:read\",\"tickets:write\",\"machines:read\"]",
+      "environment": "production",
+      "is_active": true,
+      "rate_limit_per_minute": 60,
+      "rate_limit_per_hour": 1000,
+      "rate_limit_per_day": 10000,
+      "expires_at": "2025-12-31T23:59:59Z",
+      "last_used_at": "2024-01-15T10:30:00Z",
+      "total_requests": 15234,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+#### 5.2 Create Token
+Create a new API token. The full token value is only shown once.
+
+**Endpoint:** `POST /api/v1/admin/tokens`
+**Authentication:** Admin session required
+
+**Request Body:**
+```json
+{
+  "name": "Production App",
+  "description": "API token for production application",
+  "environment": "production",
+  "scopes": ["tickets:read", "tickets:write", "machines:read"],
+  "ip_whitelist": ["192.168.1.0/24", "10.0.0.0/8"],
+  "allowed_origins": ["https://your-app.com"],
+  "rate_limit_per_minute": 60,
+  "rate_limit_per_hour": 1000,
+  "rate_limit_per_day": 10000,
+  "expires_at": "2025-12-31T23:59:59Z"
+}
+```
+
+**Field Validation:**
+- `name` (required, string, 3-200 chars) - Token name
+- `environment` (required, string) - One of: `production`, `staging`, `development`, `test`
+- `description` (optional, string) - Token description
+- `scopes` (optional, array of strings) - Permission scopes
+- `ip_whitelist` (optional, array of strings) - Allowed IP addresses/ranges
+- `allowed_origins` (optional, array of strings) - Allowed CORS origins
+- `rate_limit_per_minute` (optional, int) - Max requests per minute
+- `rate_limit_per_hour` (optional, int) - Max requests per hour
+- `rate_limit_per_day` (optional, int) - Max requests per day
+- `expires_at` (optional, datetime) - Token expiration date
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Token created successfully",
+  "data": {
+    "id": 1,
+    "token": "tok_live_abc123xyz456789",
+    "name": "Production App",
+    "environment": "production",
+    ...
+  },
+  "warning": "Save this token securely - it won't be shown again!"
+}
+```
+
+#### 5.3 Get Token
+Get details of a specific token.
+
+**Endpoint:** `GET /api/v1/admin/tokens/:id`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "token": "tok_****xyz4",
+    "name": "Production App",
+    ...
+  }
+}
+```
+
+#### 5.4 Update Token
+Update an existing token's settings.
+
+**Endpoint:** `PUT /api/v1/admin/tokens/:id`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Request Body (all fields optional):**
+```json
+{
+  "name": "Updated Name",
+  "description": "Updated description",
+  "scopes": ["tickets:read"],
+  "ip_whitelist": ["10.0.0.0/8"],
+  "allowed_origins": ["https://new-app.com"],
+  "rate_limit_per_minute": 120,
+  "rate_limit_per_hour": 2000,
+  "rate_limit_per_day": 20000,
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Token updated successfully",
+  "data": { ... }
+}
+```
+
+#### 5.5 Delete Token
+Permanently delete an API token.
+
+**Endpoint:** `DELETE /api/v1/admin/tokens/:id`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Token deleted successfully"
+}
+```
+
+#### 5.6 Disable Token
+Temporarily disable a token without deleting it.
+
+**Endpoint:** `PATCH /api/v1/admin/tokens/:id/disable`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Token disabled successfully"
+}
+```
+
+#### 5.7 Enable Token
+Re-enable a previously disabled token.
+
+**Endpoint:** `PATCH /api/v1/admin/tokens/:id/enable`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Token enabled successfully"
+}
+```
+
+#### 5.8 Get Token Usage Logs
+Get detailed access logs for a specific token.
+
+**Endpoint:** `GET /api/v1/admin/tokens/:id/logs`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Query Parameters:**
+- `limit` (optional, int, default 100) - Number of log entries to return
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "token_id": 1,
+      "method": "GET",
+      "endpoint": "/api/v1/tickets",
+      "full_url": "/api/v1/tickets?status=0.NEW",
+      "status_code": 200,
+      "response_time_ms": 45,
+      "ip_address": "192.168.1.100",
+      "user_agent": "curl/7.88.0",
+      "request_id": "req_abc123",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+### 6. Analytics Endpoints
+
+All analytics endpoints require admin session authentication.
+
+#### 6.1 Dashboard Statistics
+Get overview statistics for the admin dashboard.
+
+**Endpoint:** `GET /api/v1/admin/analytics/dashboard`
+**Authentication:** Admin session required
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "total_tokens": 10,
+    "active_tokens": 8,
+    "total_requests_24h": 15234,
+    "success_rate": 98.5,
+    "avg_response_time_ms": 45.2,
+    "top_tokens": [
+      {
+        "token_id": 1,
+        "token_name": "Production App",
+        "total_requests": 8000,
+        "successful_requests": 7900,
+        "failed_requests": 100,
+        "avg_response_time_ms": 42.5
+      }
+    ],
+    "recent_activity": [ ... ]
+  }
+}
+```
+
+#### 6.2 Token Analytics
+Get detailed analytics for a specific token.
+
+**Endpoint:** `GET /api/v1/admin/analytics/tokens/:id`
+**Authentication:** Admin session required
+
+**Parameters:**
+- `id` (path, int) - Token ID
+
+**Query Parameters:**
+- `days` (optional, int, default 7) - Number of days to analyze
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "token_id": 1,
+    "token_name": "Production App",
+    "total_requests": 8000,
+    "successful_requests": 7900,
+    "failed_requests": 100,
+    "client_errors": 80,
+    "server_errors": 20,
+    "avg_response_time_ms": 42.5,
+    "max_response_time_ms": 500,
+    "unique_ips": 5,
+    "unique_endpoints": 12,
+    "last_used_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### 6.3 Endpoint Statistics
+Get usage statistics grouped by endpoint.
+
+**Endpoint:** `GET /api/v1/admin/analytics/endpoints`
+**Authentication:** Admin session required
+
+**Query Parameters:**
+- `days` (optional, int, default 7) - Number of days to analyze
+- `limit` (optional, int, default 20) - Number of endpoints to return
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "endpoint": "/api/v1/tickets",
+      "method": "GET",
+      "request_count": 5000,
+      "unique_tokens": 5,
+      "avg_response_time_ms": 40.2,
+      "successful_requests": 4950,
+      "failed_requests": 50
+    }
+  ]
+}
+```
+
+#### 6.4 Daily Usage
+Get daily aggregated usage data.
+
+**Endpoint:** `GET /api/v1/admin/analytics/daily`
+**Authentication:** Admin session required
+
+**Query Parameters:**
+- `days` (optional, int, default 30) - Number of days to return
+- `token_id` (optional, int) - Filter by specific token
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "date": "2024-01-15",
+      "token_id": 1,
+      "token_name": "Production App",
+      "request_count": 1500,
+      "successful_requests": 1480,
+      "failed_requests": 20,
+      "avg_response_time_ms": 43.1
+    }
+  ]
+}
+```
+
+---
+
+### 7. Audit Logs
+
+#### 7.1 Get Audit Logs
+Retrieve administrative audit logs for compliance tracking.
+
+**Endpoint:** `GET /api/v1/admin/audit-logs`
+**Authentication:** Admin session required
+
+**Query Parameters:**
+- `limit` (optional, int, default 100) - Number of log entries to return
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "admin_user_id": 1,
+      "action": "token.created",
+      "resource_type": "api_token",
+      "resource_id": 5,
+      "old_values": null,
+      "new_values": "{\"name\":\"New Token\",\"environment\":\"production\"}",
+      "ip_address": "192.168.1.100",
+      "user_agent": "Mozilla/5.0 ...",
+      "description": "Created API token 'New Token'",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
 ## Data Models
 
 ### Ticket Model (OpenTicket)
@@ -758,6 +1171,88 @@ Update the operational status of a machine.
 | city_regency | string | No | City or regency name |
 | district | string | No | District name |
 
+### API Token Model
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| id | int | No | Token ID |
+| token | string | No | Token value (masked after creation) |
+| name | string | No | Token name (3-200 chars) |
+| description | string | Yes | Token description |
+| token_prefix | string | No | Token prefix (e.g., "tok") |
+| scopes | string (JSON) | Yes | Permission scopes array |
+| permissions | string (JSON) | Yes | Permission object |
+| environment | string | No | Environment: production, staging, development, test |
+| is_active | bool | No | Whether token is active |
+| ip_whitelist | string (JSON) | Yes | Allowed IP addresses |
+| allowed_origins | string (JSON) | Yes | Allowed CORS origins |
+| rate_limit_per_minute | int | No | Max requests per minute |
+| rate_limit_per_hour | int | No | Max requests per hour |
+| rate_limit_per_day | int | No | Max requests per day |
+| expires_at | timestamp | Yes | Token expiration date |
+| last_used_at | timestamp | Yes | Last usage timestamp |
+| last_used_ip | string | Yes | Last used IP address |
+| last_used_endpoint | string | Yes | Last used endpoint |
+| total_requests | int64 | No | Total request count |
+| created_at | timestamp | No | Creation timestamp |
+| updated_at | timestamp | No | Last update timestamp |
+| created_by | int | Yes | Admin user ID who created |
+| revoked_at | timestamp | Yes | Revocation timestamp |
+| revoked_by | int | Yes | Admin user ID who revoked |
+| revoked_reason | string | Yes | Revocation reason |
+
+### Admin User Model
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| id | int | No | Admin user ID |
+| username | string | No | Username (min 3 chars) |
+| email | string | No | Email address |
+| full_name | string | Yes | Full name |
+| role | string | No | Role: super_admin, admin, viewer |
+| is_active | bool | No | Whether user is active |
+| last_login_at | timestamp | Yes | Last login timestamp |
+| last_login_ip | string | Yes | Last login IP address |
+| created_at | timestamp | No | Creation timestamp |
+| updated_at | timestamp | No | Last update timestamp |
+
+### Token Usage Log Model
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| id | int64 | No | Log entry ID |
+| token_id | int | No | Associated token ID |
+| method | string | No | HTTP method (GET, POST, etc.) |
+| endpoint | string | No | Request endpoint path |
+| full_url | string | Yes | Full request URL with query params |
+| status_code | int | No | HTTP response status code |
+| response_time_ms | int | Yes | Response time in milliseconds |
+| ip_address | string | No | Client IP address |
+| user_agent | string | Yes | Client user agent |
+| referer | string | Yes | Request referer |
+| request_id | string | Yes | Unique request ID |
+| request_body_size | int | Yes | Request body size in bytes |
+| response_body_size | int | Yes | Response body size in bytes |
+| error_message | string | Yes | Error message (if failed) |
+| error_code | string | Yes | Error code (if failed) |
+| created_at | timestamp | No | Log timestamp |
+
+### Audit Log Model
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| id | int64 | No | Audit log ID |
+| admin_user_id | int | Yes | Admin who performed the action |
+| action | string | No | Action performed (e.g., "token.created") |
+| resource_type | string | No | Resource type (e.g., "api_token") |
+| resource_id | int | Yes | ID of affected resource |
+| old_values | string (JSON) | Yes | Previous values before change |
+| new_values | string (JSON) | Yes | New values after change |
+| ip_address | string | Yes | Admin's IP address |
+| user_agent | string | Yes | Admin's user agent |
+| description | string | Yes | Human-readable description |
+| created_at | timestamp | No | Audit log timestamp |
+
 ---
 
 ## Hybrid Adaptive Metadata System
@@ -774,16 +1269,16 @@ The API Gateway uses a **hybrid database-driven approach** that combines:
 ### Architecture
 
 ```
-Client Request → Handler → Service (Check Cache)
-                              ↓
-                         Cache Hit? Yes → Return Cached Data
-                              ↓ No
+Client Request -> Handler -> Service (Check Cache)
+                              |
+                         Cache Hit? Yes -> Return Cached Data
+                              | No
                          Query Database (SELECT DISTINCT)
-                              ↓
+                              |
                          Combine with Descriptions
-                              ↓
+                              |
                          Update Cache
-                              ↓
+                              |
                          Return Results
 ```
 
@@ -813,11 +1308,55 @@ INSERT INTO open_ticket (status, ...) VALUES ('9.Emergency', ...)
 
 -- After cache expires (max 1 hour):
 GET /api/v1/tickets/metadata
-→ Returns: {"code": "9.Emergency", "description": "9.Emergency", "is_documented": false}
+-- Returns: {"code": "9.Emergency", "description": "9.Emergency", "is_documented": false}
 
 -- Value works immediately in all operations
-POST /api/v1/tickets {"status": "9.Emergency", ...}  ✅ Works!
-GET /api/v1/tickets/status/9.Emergency  ✅ Works!
+POST /api/v1/tickets {"status": "9.Emergency", ...}
+GET /api/v1/tickets/status/9.Emergency
+```
+
+---
+
+## Token Management System
+
+### Overview
+
+The token management system provides enterprise-grade API access control:
+
+- **Create tokens** with granular scopes and rate limits
+- **Monitor usage** with real-time analytics and daily breakdowns
+- **Control access** with IP whitelisting and environment separation
+- **Track everything** with comprehensive audit logging
+- **Manage lifecycle** with expiration, disable/enable, and revocation
+
+### Admin Roles
+
+| Role | Permissions |
+|------|-------------|
+| `super_admin` | Full access to all admin features |
+| `admin` | Token management, analytics, audit logs |
+| `viewer` | Read-only access to dashboard and analytics |
+
+### Token Lifecycle
+
+```
+Created -> Active -> [Disabled] -> [Re-enabled] -> [Expired/Revoked/Deleted]
+```
+
+### Rate Limiting
+
+Rate limits are enforced per-token at three levels:
+- **Per minute** - Burst protection
+- **Per hour** - Sustained usage control
+- **Per day** - Daily quota enforcement
+
+When a rate limit is exceeded, the API returns `429 Too Many Requests`:
+```json
+{
+  "success": false,
+  "message": "Rate limit exceeded: minute limit (60 requests)",
+  "error": "Please slow down your requests"
+}
 ```
 
 ---
@@ -829,11 +1368,12 @@ GET /api/v1/tickets/status/9.Emergency  ✅ Works!
 | 200 | OK - Request successful |
 | 201 | Created - Resource created successfully |
 | 400 | Bad Request - Invalid input data |
-| 401 | Unauthorized - Missing or invalid API key |
+| 401 | Unauthorized - Missing or invalid API key/token |
 | 404 | Not Found - Resource not found |
 | 409 | Conflict - Resource already exists (duplicate ticket number) |
+| 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error - Server error |
-| 503 | Service Unavailable - Database connection unavailable |
+| 503 | Service Unavailable - Database connection or token service unavailable |
 
 ---
 
@@ -844,21 +1384,21 @@ GET /api/v1/tickets/status/9.Emergency  ✅ Works!
 **Get ticket metadata:**
 ```bash
 curl -X GET \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   http://localhost:8080/api/v1/tickets/metadata
 ```
 
 **Get all tickets:**
 ```bash
 curl -X GET \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   http://localhost:8080/api/v1/tickets
 ```
 
 **Create a ticket:**
 ```bash
 curl -X POST \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   -H "Content-Type: application/json" \
   -d '{
     "terminal_id": "ATM-001",
@@ -875,14 +1415,14 @@ curl -X POST \
 **Get tickets by status:**
 ```bash
 curl -X GET \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   "http://localhost:8080/api/v1/tickets/status/0.NEW"
 ```
 
 **Update ticket:**
 ```bash
 curl -X PUT \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "6.Follow-up Sales team",
@@ -892,30 +1432,52 @@ curl -X PUT \
   http://localhost:8080/api/v1/tickets/ATM-001
 ```
 
-**Get machine metadata:**
-```bash
-curl -X GET \
-  -H "X-API-Key: your_api_key" \
-  http://localhost:8080/api/v1/machines/metadata
-```
-
 **Search machines:**
 ```bash
 curl -X GET \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Token: tok_live_abc123" \
   "http://localhost:8080/api/v1/machines/search?status=Active&province=DKI%20Jakarta"
 ```
 
-**Update machine status:**
+**Admin login:**
 ```bash
-curl -X PATCH \
-  -H "X-API-Key: your_api_key" \
+curl -X POST \
   -H "Content-Type: application/json" \
   -d '{
-    "terminal_id": "ATM-001",
-    "status": "Maintenance"
+    "username": "admin",
+    "password": "your_password"
   }' \
-  http://localhost:8080/api/v1/machines/status
+  http://localhost:8080/api/v1/admin/auth/login
+```
+
+**Create API token (admin):**
+```bash
+curl -X POST \
+  -H "X-Session-Token: sess_abc123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production App",
+    "environment": "production",
+    "scopes": ["tickets:read", "tickets:write", "machines:read"],
+    "rate_limit_per_minute": 60,
+    "rate_limit_per_hour": 1000,
+    "rate_limit_per_day": 10000
+  }' \
+  http://localhost:8080/api/v1/admin/tokens
+```
+
+**Get dashboard analytics (admin):**
+```bash
+curl -X GET \
+  -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/analytics/dashboard
+```
+
+**Get audit logs (admin):**
+```bash
+curl -X GET \
+  -H "X-Session-Token: sess_abc123" \
+  "http://localhost:8080/api/v1/admin/audit-logs?limit=50"
 ```
 
 ### JavaScript/Fetch Examples
@@ -924,7 +1486,7 @@ curl -X PATCH \
 ```javascript
 fetch('http://localhost:8080/api/v1/tickets/metadata', {
   headers: {
-    'X-API-Key': 'your_api_key'
+    'X-API-Token': 'tok_live_abc123'
   }
 })
   .then(response => response.json())
@@ -940,7 +1502,7 @@ fetch('http://localhost:8080/api/v1/tickets/metadata', {
 fetch('http://localhost:8080/api/v1/tickets', {
   method: 'POST',
   headers: {
-    'X-API-Key': 'your_api_key',
+    'X-API-Token': 'tok_live_abc123',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -957,6 +1519,34 @@ fetch('http://localhost:8080/api/v1/tickets', {
   .then(data => console.log('Created:', data));
 ```
 
+**Admin login and token creation:**
+```javascript
+// Login
+const loginResp = await fetch('http://localhost:8080/api/v1/admin/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username: 'admin', password: 'your_password' })
+});
+const { session_token } = await loginResp.json();
+
+// Create token
+const tokenResp = await fetch('http://localhost:8080/api/v1/admin/tokens', {
+  method: 'POST',
+  headers: {
+    'X-Session-Token': session_token,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'My App',
+    environment: 'production',
+    rate_limit_per_minute: 60
+  })
+});
+const { data: newToken, warning } = await tokenResp.json();
+console.log('New token:', newToken.token); // Save this!
+console.log(warning); // "Save this token securely - it won't be shown again!"
+```
+
 ---
 
 ## Best Practices
@@ -965,11 +1555,11 @@ fetch('http://localhost:8080/api/v1/tickets', {
 Always use metadata endpoints to discover valid field values rather than hard-coding them:
 
 ```javascript
-// ✅ Good: Dynamic values from metadata
+// Good: Dynamic values from metadata
 const metadata = await fetch('/api/v1/tickets/metadata');
 const statuses = metadata.statuses.map(s => s.code);
 
-// ❌ Bad: Hard-coded values
+// Bad: Hard-coded values
 const statuses = ['Open', 'Closed']; // Will be outdated
 ```
 
@@ -981,28 +1571,33 @@ const priority = ticket.priority || 'Not Set';
 const closeTime = ticket.close_time || 'Still Open';
 ```
 
-### 3. Cache Metadata Client-Side
-Since metadata is cached for 1 hour server-side, you can also cache it client-side:
+### 3. Use API Tokens Over API Keys
+Prefer `X-API-Token` over `X-API-Key` for better security, analytics, and rate limiting:
+
+```bash
+# Recommended
+curl -H "X-API-Token: tok_live_abc123" http://localhost:8080/api/v1/tickets
+
+# Legacy (still supported)
+curl -H "X-API-Key: your_key" http://localhost:8080/api/v1/tickets
+```
+
+### 4. Handle Rate Limiting
+When using API tokens, handle `429` responses gracefully:
 
 ```javascript
-// Cache metadata for 1 hour
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-let cachedMetadata = null;
-let cacheTime = 0;
+const response = await fetch('/api/v1/tickets', {
+  headers: { 'X-API-Token': token }
+});
 
-async function getMetadata() {
-  if (cachedMetadata && Date.now() - cacheTime < CACHE_DURATION) {
-    return cachedMetadata;
-  }
-
-  const response = await fetch('/api/v1/tickets/metadata');
-  cachedMetadata = await response.json();
-  cacheTime = Date.now();
-  return cachedMetadata;
+if (response.status === 429) {
+  // Back off and retry after a delay
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  // Retry request...
 }
 ```
 
-### 4. Use Proper Status Codes
+### 5. Use Proper Status Codes
 Always check the `success` field and HTTP status code:
 
 ```javascript
@@ -1010,22 +1605,19 @@ const response = await fetch('/api/v1/tickets');
 const data = await response.json();
 
 if (data.success) {
-  // Handle success
   console.log('Tickets:', data.data);
 } else {
-  // Handle error
   console.error('Error:', data.message);
 }
 ```
 
-### 5. Handle Undocumented Values
+### 6. Handle Undocumented Values
 Use the `is_documented` flag to identify new values:
 
 ```javascript
 metadata.statuses.forEach(status => {
   if (!status.is_documented) {
     console.warn(`New status discovered: ${status.code}`);
-    // Alert admin to document this value
   }
 });
 ```
@@ -1084,6 +1676,15 @@ metadata.statuses.forEach(status => {
 - `net`
 - `flm_name`
 
+### Token Management Tables (token_management database)
+
+- `admin_users` - Admin user accounts
+- `admin_sessions` - Active admin sessions
+- `api_tokens` - API token definitions and metadata
+- `token_usage_logs` - Per-request usage tracking
+- `token_rate_limits` - Rate limit counters by time window
+- `audit_logs` - Administrative action audit trail
+
 ---
 
 ## Versioning
@@ -1099,58 +1700,52 @@ All endpoints are prefixed with `/api/v1` to support future versioning.
 
 ---
 
-## Rate Limiting
-
-Currently, no rate limiting is implemented.
-
-**Recommendations for Production:**
-- Implement rate limiting per API key
-- Suggested limit: 1000 requests per hour per key
-- Return `429 Too Many Requests` when limit exceeded
-- Include `X-RateLimit-*` headers in responses
-
----
-
-## Support & Contact
-
-For API support, bug reports, or feature requests:
-
-- **GitHub Issues**: [Create an issue](https://github.com/your-org/api-gateway/issues)
-- **Email**: support@your-org.com
-- **Documentation**: This file and Swagger UI at `/swagger/index.html`
-
----
-
 ## Changelog
 
-### Version 1.0.0 (2024-01-15)
+### Version 1.1.0 (Current)
+
+**New Features:**
+- Token management system with admin dashboard
+- Admin authentication with session management
+- API token creation with scopes, rate limits, and IP whitelisting
+- Usage analytics (dashboard stats, endpoint stats, daily usage)
+- Audit logging for all administrative actions
+- Combined authentication (X-API-Token with rate limiting and usage tracking)
+- Gzip response compression
+- Token disable/enable lifecycle management
+
+**Improvements:**
+- Health check now reports token_database status
+- Non-fatal database connections (app starts even if a DB is unavailable)
+- Asynchronous usage log recording (non-blocking)
+
+### Version 1.0.0
 
 **Features:**
-- ✅ Complete CRUD operations for tickets and machines
-- ✅ Hybrid adaptive metadata system with database queries
-- ✅ Intelligent 1-hour caching for optimal performance
-- ✅ Thread-safe concurrent request handling
-- ✅ Comprehensive Swagger/OpenAPI documentation
-- ✅ Support for NULL database values with proper JSON marshaling
-- ✅ Float64 support for ticket duration field
-- ✅ Geographic area mapping for FLM providers
-- ✅ Standardized error responses
-- ✅ API key authentication
-- ✅ Health check endpoints
-- ✅ Advanced search and filtering
+- Complete CRUD operations for tickets and machines
+- Hybrid adaptive metadata system with database queries
+- Intelligent 1-hour caching for optimal performance
+- Thread-safe concurrent request handling
+- Comprehensive Swagger/OpenAPI documentation
+- Support for NULL database values with proper JSON marshaling
+- Float64 support for ticket duration field
+- Geographic area mapping for FLM providers
+- Standardized error responses
+- API key authentication
+- Health check endpoints
+- Advanced search and filtering
 
 **Database Support:**
-- ✅ SQL Server (ticket_master and machine_master databases)
-- ✅ Proper handling of database column names with spaces
-- ✅ Support for nullable fields
+- SQL Server (ticket_master and machine_master databases)
+- Proper handling of database column names with spaces
+- Support for nullable fields
 
 **Performance:**
-- ✅ Metadata caching (1-hour TTL)
-- ✅ Efficient database queries with proper indexing
-- ✅ Thread-safe operations with RWMutex
+- Metadata caching (1-hour TTL)
+- Efficient database queries with proper indexing
+- Thread-safe operations with RWMutex
 
 ---
 
-*Last Updated: 2024-01-15*
-*API Gateway Version: 1.0.0*
-*Documentation Version: 1.0.0*
+*API Gateway Version: 1.1.0*
+*Documentation Version: 1.1.0*

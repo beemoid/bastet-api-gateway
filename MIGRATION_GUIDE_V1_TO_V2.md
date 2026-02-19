@@ -1,890 +1,429 @@
-# API Migration Guide: v1 to v2
+# Migration Guide: API Key to Token-Based Authentication
 
 ## Overview
 
-This guide helps you migrate from API Gateway v1 to v2. Version 2 introduces significant improvements including enhanced token management, better analytics, and improved data structures.
+This guide helps you migrate from the legacy API key authentication (`X-API-Key`) to the new token-based authentication system (`X-API-Token`). The token system was introduced alongside the admin dashboard, analytics, and audit logging features.
 
-**Migration Timeline:**
-- **v2 Launch Date:** March 1, 2024
-- **v1 Support Period:** 6 months (until September 1, 2024)
-- **v1 Deprecation Date:** September 1, 2024
-- **v1 Sunset Date:** October 1, 2024
-
-After the sunset date, v1 endpoints will return `410 Gone` status code.
+**Important:** Both authentication methods currently work side-by-side on all `/api/v1` endpoints. There is no separate `/api/v2` prefix -- all new features are available under the existing `/api/v1` path.
 
 ---
 
 ## Table of Contents
 
-1. [Breaking Changes](#breaking-changes)
-2. [New Features](#new-features)
-3. [Field Mappings](#field-mappings)
-4. [Authentication Changes](#authentication-changes)
-5. [Response Format Changes](#response-format-changes)
-6. [Code Examples](#code-examples)
-7. [Testing Your Migration](#testing-your-migration)
-8. [FAQ](#faq)
+1. [What Changed](#what-changed)
+2. [Why Migrate](#why-migrate)
+3. [Migration Steps](#migration-steps)
+4. [Authentication Comparison](#authentication-comparison)
+5. [Code Examples](#code-examples)
+6. [New Features Available After Migration](#new-features-available-after-migration)
+7. [FAQ](#faq)
 
 ---
 
-## Breaking Changes
+## What Changed
 
-### 1. Field Name Changes
+### New Systems Added (v1.1.0)
 
-Several field names have been improved for clarity and consistency.
+| Feature | Description |
+|---------|-------------|
+| **Token Management** | Scoped API tokens with rate limiting, IP whitelisting, and expiration |
+| **Admin Dashboard** | Web UI at `/admin` for managing tokens and viewing analytics |
+| **Admin Auth** | Session-based admin authentication (`POST /api/v1/admin/auth/login`) |
+| **Analytics** | Dashboard stats, endpoint stats, daily usage tracking |
+| **Audit Logging** | Complete history of all administrative actions |
+| **Rate Limiting** | Per-token configurable limits (per minute, hour, day) |
+| **Usage Tracking** | Every API call made with a token is logged with response time, status, IP, etc. |
+| **Gzip Compression** | Automatic response compression |
+| **Third Database** | New `token_management` database for tokens, sessions, and audit logs |
 
-#### Ticket Fields
+### What Did NOT Change
 
-| v1 Field Name | v2 Field Name | Reason |
-|---------------|---------------|--------|
-| `tickets_no` | `ticket_number` | Improved clarity |
-| `dsp_flm` | `flm_identifier` | Consistency with naming conventions |
-| `dsp_slm` | `slm_identifier` | Consistency with naming conventions |
-| `p_duration` | `problem_duration` | Clarity |
-| `incident_start_datetime` | `incident_started_at` | Consistency with timestamp naming |
-| `open_time` | `opened_at` | Consistency |
-| `close_time` | `closed_at` | Consistency |
-
-#### Machine Fields
-
-| v1 Field Name | v2 Field Name | Reason |
-|---------------|---------------|--------|
-| `city_regency` | `city` | Simplified naming |
-| `std` | `standard` | Clarity |
-
-### 2. Response Structure Changes
-
-v2 introduces a more structured response format with metadata and pagination.
-
-**v1 Response:**
-```json
-{
-  "success": true,
-  "message": "Tickets retrieved successfully",
-  "data": [...],
-  "total": 100
-}
-```
-
-**v2 Response:**
-```json
-{
-  "success": true,
-  "message": "Tickets retrieved successfully",
-  "version": "2.0",
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "per_page": 20,
-    "total_pages": 5,
-    "total_items": 100,
-    "has_next": true,
-    "has_prev": false
-  },
-  "meta": {
-    "request_id": "req_abc123xyz",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "response_time_ms": 45
-  }
-}
-```
-
-### 3. Pagination Support
-
-v2 adds mandatory pagination for list endpoints to improve performance.
-
-**v1 (No pagination):**
-```
-GET /api/v1/tickets
-```
-
-**v2 (With pagination):**
-```
-GET /api/v2/tickets?page=1&per_page=20
-```
-
-**Default values if not specified:**
-- `page`: 1
-- `per_page`: 20
-- `max per_page`: 100
-
-### 4. Authentication Changes
-
-#### v1: Simple API Key
-```
-Header: X-API-Key: your_simple_api_key
-```
-
-#### v2: Token-based Authentication with Metadata
-```
-Header: X-API-Token: tok_live_abc123xyz456
-```
-
-**New Token Features:**
-- ✅ Scoped permissions (read-only, read-write, admin)
-- ✅ Token expiration dates
-- ✅ Usage analytics and rate limiting
-- ✅ IP whitelisting (optional)
-- ✅ Token rotation support
-- ✅ Detailed audit logs
-
-### 5. Error Response Changes
-
-**v1 Error:**
-```json
-{
-  "success": false,
-  "message": "Ticket not found"
-}
-```
-
-**v2 Error (Enhanced):**
-```json
-{
-  "success": false,
-  "message": "Ticket not found",
-  "error": {
-    "code": "TICKET_NOT_FOUND",
-    "type": "NotFoundError",
-    "details": "No ticket found with terminal_id: ATM-001",
-    "request_id": "req_abc123xyz",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "documentation_url": "https://docs.api.example.com/errors/TICKET_NOT_FOUND"
-  }
-}
-```
+- All existing `/api/v1` endpoints remain identical
+- Request/response formats are unchanged
+- Field names are unchanged
+- No mandatory pagination was added
+- Database schemas for `ticket_master` and `machine_master` are untouched
+- `X-API-Key` authentication still works
 
 ---
 
-## New Features
+## Why Migrate
 
-### 1. Advanced Token Management
+### Legacy API Key Limitations
 
-v2 introduces a complete token management system:
-
-- **Token Dashboard:** Web UI to manage all API tokens
-- **Scoped Permissions:** Fine-grained access control
-- **Usage Analytics:** Real-time monitoring of token usage
-- **Rate Limiting:** Per-token rate limits
-- **Token Rotation:** Secure token rotation without downtime
-- **Audit Logs:** Complete history of all API calls
-
-**Access Token Management:**
-```
-Dashboard: http://localhost:8080/admin/tokens
-API: /api/v2/admin/tokens
-```
-
-### 2. Analytics Endpoints
-
-New endpoints for monitoring and insights:
-
-```
-GET /api/v2/analytics/dashboard           - Overall system metrics
-GET /api/v2/analytics/critical-terminals  - Terminals needing attention
-GET /api/v2/analytics/flm-workload        - Maintenance provider workload
-GET /api/v2/analytics/area-analysis       - Geographic performance
-```
-
-### 3. Enhanced Metadata
-
-Metadata endpoints now include additional information:
-
-```json
-{
-  "statuses": [
-    {
-      "code": "0.NEW",
-      "description": "New ticket",
-      "is_documented": true,
-      "usage_count": 1234,          // NEW in v2
-      "last_used": "2024-01-15T10:30:00Z"  // NEW in v2
-    }
-  ]
-}
-```
-
-### 4. Webhook Support
-
-v2 adds webhook notifications for events:
-
-```
-POST /api/v2/webhooks/register
-{
-  "url": "https://your-app.com/webhook",
-  "events": ["ticket.created", "ticket.updated", "machine.offline"],
-  "secret": "your_webhook_secret"
-}
-```
-
-### 5. Batch Operations
-
-New batch endpoints for efficiency:
-
-```
-POST /api/v2/tickets/batch
-{
-  "operations": [
-    {"action": "create", "data": {...}},
-    {"action": "update", "id": "ATM-001", "data": {...}}
-  ]
-}
-```
+| Feature | API Key (`X-API-Key`) | API Token (`X-API-Token`) |
+|---------|----------------------|--------------------------|
+| Multiple keys per app | No (single shared key) | Yes (unlimited tokens) |
+| Scoped permissions | No | Yes |
+| Rate limiting | No | Yes (per minute/hour/day) |
+| Usage analytics | No | Yes (per-token tracking) |
+| IP whitelisting | No | Yes (optional) |
+| Token expiration | No | Yes (configurable) |
+| Disable/enable | No (must change key) | Yes (instant toggle) |
+| Audit trail | No | Yes (full history) |
+| Environment separation | No | Yes (production/staging/dev/test) |
 
 ---
 
-## Field Mappings
+## Migration Steps
 
-### Complete Ticket Field Mapping
+### Step 1: Access the Admin Dashboard
+
+Navigate to the admin dashboard:
+```
+http://localhost:8080/admin
+```
+
+Login with admin credentials configured in the `token_management` database.
+
+### Step 2: Create an API Token
+
+**Via Dashboard:**
+1. Click "Create Token"
+2. Fill in token details:
+   - **Name:** e.g., "Production App"
+   - **Environment:** production, staging, development, or test
+   - **Scopes:** e.g., tickets:read, tickets:write, machines:read
+   - **Rate Limits:** requests per minute/hour/day
+   - **IP Whitelist:** (optional) restrict to specific IPs
+   - **Expiration:** (optional) set an expiry date
+3. Click "Create"
+4. **Save the token immediately** -- it won't be shown again
+
+**Via API:**
+```bash
+# Login to get session token
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your_password"}' \
+  http://localhost:8080/api/v1/admin/auth/login
+
+# Create API token
+curl -X POST \
+  -H "X-Session-Token: sess_abc123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production App",
+    "environment": "production",
+    "scopes": ["tickets:read", "tickets:write", "machines:read"],
+    "rate_limit_per_minute": 60,
+    "rate_limit_per_hour": 1000,
+    "rate_limit_per_day": 10000
+  }' \
+  http://localhost:8080/api/v1/admin/tokens
+```
+
+### Step 3: Update Your Application
+
+Replace the `X-API-Key` header with `X-API-Token`:
+
+```diff
+- headers: { 'X-API-Key': 'your_simple_api_key' }
++ headers: { 'X-API-Token': 'tok_live_abc123xyz456' }
+```
+
+**That's it.** No URL changes, no field name changes, no response format changes.
+
+### Step 4: Add Rate Limit Handling
+
+Since tokens have rate limits, add handling for `429 Too Many Requests`:
 
 ```javascript
-// v1 to v2 field conversion
-const convertTicketV1ToV2 = (v1Ticket) => {
-  return {
-    // Renamed fields
-    ticket_number: v1Ticket.tickets_no,
-    flm_identifier: v1Ticket.dsp_flm,
-    slm_identifier: v1Ticket.dsp_slm,
-    problem_duration: v1Ticket.p_duration,
-    incident_started_at: v1Ticket.incident_start_datetime,
-    opened_at: v1Ticket.open_time,
-    closed_at: v1Ticket.close_time,
+const response = await fetch('/api/v1/tickets', {
+  headers: { 'X-API-Token': token }
+});
 
-    // Unchanged fields
-    terminal_id: v1Ticket.terminal_id,
-    terminal_name: v1Ticket.terminal_name,
-    priority: v1Ticket.priority,
-    mode: v1Ticket.mode,
-    initial_problem: v1Ticket.initial_problem,
-    current_problem: v1Ticket.current_problem,
-    count: v1Ticket.count,
-    status: v1Ticket.status,
-    remarks: v1Ticket.remarks,
-    balance: v1Ticket.balance,
-    condition: v1Ticket.condition,
-    tickets_duration: v1Ticket.tickets_duration,
-    problem_history: v1Ticket.problem_history,
-    mode_history: v1Ticket.mode_history,
-    last_withdrawal: v1Ticket.last_withdrawal,
-    export_name: v1Ticket.export_name
-  };
-};
+if (response.status === 429) {
+  // Back off and retry
+  const delay = 5000; // 5 seconds
+  await new Promise(resolve => setTimeout(resolve, delay));
+  // Retry request...
+}
 ```
 
-### Complete Machine Field Mapping
+### Step 5: Monitor Usage
 
-```javascript
-// v1 to v2 field conversion
-const convertMachineV1ToV2 = (v1Machine) => {
-  return {
-    // Renamed fields
-    city: v1Machine.city_regency,
-    standard: v1Machine.std,
-
-    // Unchanged fields
-    terminal_id: v1Machine.terminal_id,
-    store: v1Machine.store,
-    store_code: v1Machine.store_code,
-    store_name: v1Machine.store_name,
-    date_of_activation: v1Machine.date_of_activation,
-    status: v1Machine.status,
-    gps: v1Machine.gps,
-    lat: v1Machine.lat,
-    lon: v1Machine.lon,
-    province: v1Machine.province,
-    district: v1Machine.district
-  };
-};
-```
+After migrating, monitor your token's usage via:
+- **Admin Dashboard:** `http://localhost:8080/admin`
+- **Token Analytics API:** `GET /api/v1/admin/analytics/tokens/:id`
+- **Usage Logs API:** `GET /api/v1/admin/tokens/:id/logs`
 
 ---
 
-## Authentication Changes
+## Authentication Comparison
 
-### v1 Authentication (Deprecated)
+### Before (Legacy API Key)
 
 ```bash
-# Simple API key in header
-curl -H "X-API-Key: your_simple_key" \
+curl -H "X-API-Key: your_simple_api_key" \
   http://localhost:8080/api/v1/tickets
 ```
 
-**Limitations:**
-- ❌ No expiration
-- ❌ No permissions/scopes
-- ❌ No usage tracking
-- ❌ Single key for all applications
-
-### v2 Authentication (Recommended)
+### After (API Token)
 
 ```bash
-# Token-based with scopes and expiration
 curl -H "X-API-Token: tok_live_abc123xyz456" \
-  http://localhost:8080/api/v2/tickets
+  http://localhost:8080/api/v1/tickets
 ```
 
-**Benefits:**
-- ✅ Token expiration
-- ✅ Scoped permissions (read, write, admin)
-- ✅ Usage analytics
-- ✅ Multiple tokens per application
-- ✅ Token rotation support
-- ✅ IP whitelisting
-
-### Obtaining v2 Tokens
-
-**Step 1: Access Token Dashboard**
-```
-URL: http://localhost:8080/admin/tokens
-Login: admin / your_admin_password
-```
-
-**Step 2: Create New Token**
-```
-Click "Create Token"
-- Name: "Production App"
-- Scopes: ["tickets:read", "tickets:write", "machines:read"]
-- Expires: 2025-12-31
-- IP Whitelist: 192.168.1.0/24 (optional)
-```
-
-**Step 3: Save Token**
-```
-Token generated: tok_live_abc123xyz456
-⚠️ Save this token - it won't be shown again!
-```
-
-**Step 4: Use Token**
-```bash
-curl -H "X-API-Token: tok_live_abc123xyz456" \
-  http://localhost:8080/api/v2/tickets
-```
-
----
-
-## Response Format Changes
-
-### List Endpoints
-
-#### v1 Response Format
-
-```json
-GET /api/v1/tickets
-
-{
-  "success": true,
-  "message": "Tickets retrieved successfully",
-  "data": [
-    {
-      "terminal_id": "ATM-001",
-      "tickets_no": "TKT-2024-001",
-      "status": "0.NEW"
-    }
-  ],
-  "total": 100
-}
-```
-
-#### v2 Response Format
-
-```json
-GET /api/v2/tickets?page=1&per_page=20
-
-{
-  "success": true,
-  "message": "Tickets retrieved successfully",
-  "version": "2.0",
-  "data": [
-    {
-      "terminal_id": "ATM-001",
-      "ticket_number": "TKT-2024-001",  // Renamed
-      "status": "0.NEW",
-      "created_at": "2024-01-15T10:30:00Z",  // New field
-      "updated_at": "2024-01-15T12:00:00Z"   // New field
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "per_page": 20,
-    "total_pages": 5,
-    "total_items": 100,
-    "has_next": true,
-    "has_prev": false
-  },
-  "meta": {
-    "request_id": "req_abc123xyz",
-    "timestamp": "2024-01-15T14:30:00Z",
-    "response_time_ms": 45,
-    "api_version": "2.0"
-  }
-}
-```
-
-### Error Responses
-
-#### v1 Error Format
-
-```json
-{
-  "success": false,
-  "message": "Ticket not found"
-}
-```
-
-#### v2 Error Format
-
-```json
-{
-  "success": false,
-  "message": "Ticket not found",
-  "error": {
-    "code": "TICKET_NOT_FOUND",
-    "type": "NotFoundError",
-    "details": "No ticket found with terminal_id: ATM-001",
-    "request_id": "req_abc123xyz",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "documentation_url": "https://docs.example.com/errors/TICKET_NOT_FOUND",
-    "suggestions": [
-      "Verify the terminal_id is correct",
-      "Check if the ticket was closed",
-      "Use GET /api/v2/tickets to list all tickets"
-    ]
-  }
-}
-```
+**Note:** The endpoint URL, request format, and response format are identical. Only the authentication header changes.
 
 ---
 
 ## Code Examples
 
-### JavaScript/Node.js Migration
+### JavaScript/Node.js
 
-#### Before (v1):
-
+#### Before:
 ```javascript
-// v1 client code
-const apiKey = 'your_simple_api_key';
+const API_KEY = 'your_simple_api_key';
 
-async function getAllTickets() {
+async function getTickets() {
   const response = await fetch('http://localhost:8080/api/v1/tickets', {
-    headers: {
-      'X-API-Key': apiKey
-    }
+    headers: { 'X-API-Key': API_KEY }
+  });
+  return response.json();
+}
+```
+
+#### After:
+```javascript
+const API_TOKEN = 'tok_live_abc123xyz456';
+
+async function getTickets() {
+  const response = await fetch('http://localhost:8080/api/v1/tickets', {
+    headers: { 'X-API-Token': API_TOKEN }
   });
 
-  const result = await response.json();
-
-  if (result.success) {
-    return result.data;  // Returns all tickets (no pagination)
+  // Handle rate limiting
+  if (response.status === 429) {
+    await new Promise(r => setTimeout(r, 5000));
+    return getTickets(); // Retry
   }
 
-  throw new Error(result.message);
+  return response.json();
 }
-
-// Usage
-const tickets = await getAllTickets();
-console.log(`Total tickets: ${tickets.length}`);
 ```
 
-#### After (v2):
+### Python
 
-```javascript
-// v2 client code
-const apiToken = 'tok_live_abc123xyz456';
-
-async function getAllTickets(page = 1, perPage = 20) {
-  const response = await fetch(
-    `http://localhost:8080/api/v2/tickets?page=${page}&per_page=${perPage}`,
-    {
-      headers: {
-        'X-API-Token': apiToken
-      }
-    }
-  );
-
-  const result = await response.json();
-
-  if (result.success) {
-    return {
-      tickets: result.data,
-      pagination: result.pagination,
-      meta: result.meta
-    };
-  }
-
-  // Enhanced error handling
-  throw new Error(
-    `${result.error.code}: ${result.error.details} (Request ID: ${result.error.request_id})`
-  );
-}
-
-// Usage with pagination
-const { tickets, pagination, meta } = await getAllTickets(1, 20);
-console.log(`Page ${pagination.page} of ${pagination.total_pages}`);
-console.log(`Total tickets: ${pagination.total_items}`);
-console.log(`Request ID: ${meta.request_id}`);
-console.log(`Response time: ${meta.response_time_ms}ms`);
-
-// Field name changes - convert ticket data
-const ticketNumber = tickets[0].ticket_number;  // v2: ticket_number (was tickets_no in v1)
-const flmId = tickets[0].flm_identifier;        // v2: flm_identifier (was dsp_flm in v1)
-const openedAt = tickets[0].opened_at;          // v2: opened_at (was open_time in v1)
-```
-
-### Python Migration
-
-#### Before (v1):
-
+#### Before:
 ```python
-# v1 client code
 import requests
 
 API_KEY = 'your_simple_api_key'
 BASE_URL = 'http://localhost:8080/api/v1'
 
-def get_all_tickets():
+def get_tickets():
     headers = {'X-API-Key': API_KEY}
     response = requests.get(f'{BASE_URL}/tickets', headers=headers)
-
-    result = response.json()
-
-    if result['success']:
-        return result['data']
-
-    raise Exception(result['message'])
-
-# Usage
-tickets = get_all_tickets()
-print(f'Total tickets: {len(tickets)}')
+    return response.json()
 ```
 
-#### After (v2):
-
+#### After:
 ```python
-# v2 client code
 import requests
+import time
 
 API_TOKEN = 'tok_live_abc123xyz456'
-BASE_URL = 'http://localhost:8080/api/v2'
+BASE_URL = 'http://localhost:8080/api/v1'
 
-def get_all_tickets(page=1, per_page=20):
+def get_tickets():
     headers = {'X-API-Token': API_TOKEN}
-    params = {'page': page, 'per_page': per_page}
+    response = requests.get(f'{BASE_URL}/tickets', headers=headers)
 
-    response = requests.get(f'{BASE_URL}/tickets', headers=headers, params=params)
-    result = response.json()
+    # Handle rate limiting
+    if response.status_code == 429:
+        time.sleep(5)
+        return get_tickets()  # Retry
 
-    if result['success']:
-        return {
-            'tickets': result['data'],
-            'pagination': result['pagination'],
-            'meta': result['meta']
-        }
-
-    # Enhanced error handling
-    error = result.get('error', {})
-    raise Exception(
-        f"{error.get('code')}: {error.get('details')} "
-        f"(Request ID: {error.get('request_id')})"
-    )
-
-# Usage with pagination
-response = get_all_tickets(page=1, per_page=20)
-tickets = response['tickets']
-pagination = response['pagination']
-meta = response['meta']
-
-print(f"Page {pagination['page']} of {pagination['total_pages']}")
-print(f"Total tickets: {pagination['total_items']}")
-print(f"Request ID: {meta['request_id']}")
-print(f"Response time: {meta['response_time_ms']}ms")
-
-# Field name changes - access ticket data
-ticket_number = tickets[0]['ticket_number']    # v2: ticket_number (was tickets_no in v1)
-flm_id = tickets[0]['flm_identifier']         # v2: flm_identifier (was dsp_flm in v1)
-opened_at = tickets[0]['opened_at']            # v2: opened_at (was open_time in v1)
+    return response.json()
 ```
 
-### cURL Migration
+### cURL
 
-#### Before (v1):
-
+#### Before:
 ```bash
-# Get all tickets (v1)
-curl -H "X-API-Key: your_simple_key" \
-  http://localhost:8080/api/v1/tickets
+# Get tickets
+curl -H "X-API-Key: your_key" http://localhost:8080/api/v1/tickets
 
-# Create ticket (v1)
+# Create ticket
 curl -X POST \
-  -H "X-API-Key: your_simple_key" \
+  -H "X-API-Key: your_key" \
   -H "Content-Type: application/json" \
-  -d '{
-    "terminal_id": "ATM-001",
-    "tickets_no": "TKT-2024-001",
-    "status": "0.NEW",
-    "dsp_flm": "FLM-001"
-  }' \
+  -d '{"terminal_id": "ATM-001", ...}' \
   http://localhost:8080/api/v1/tickets
 ```
 
-#### After (v2):
-
+#### After:
 ```bash
-# Get all tickets with pagination (v2)
-curl -H "X-API-Token: tok_live_abc123xyz456" \
-  "http://localhost:8080/api/v2/tickets?page=1&per_page=20"
+# Get tickets (same URL, different auth header)
+curl -H "X-API-Token: tok_live_abc123" http://localhost:8080/api/v1/tickets
 
-# Create ticket with updated field names (v2)
+# Create ticket (same URL, different auth header)
 curl -X POST \
-  -H "X-API-Token: tok_live_abc123xyz456" \
+  -H "X-API-Token: tok_live_abc123" \
   -H "Content-Type: application/json" \
-  -d '{
-    "terminal_id": "ATM-001",
-    "ticket_number": "TKT-2024-001",
-    "status": "0.NEW",
-    "flm_identifier": "FLM-001"
-  }' \
-  http://localhost:8080/api/v2/tickets
+  -d '{"terminal_id": "ATM-001", ...}' \
+  http://localhost:8080/api/v1/tickets
 ```
 
 ---
 
-## Testing Your Migration
+## New Features Available After Migration
 
-### Step 1: Get v2 Access
+Once you've migrated to token-based auth, you gain access to these capabilities:
 
-1. **Create a v2 token:**
-   ```bash
-   # Access admin dashboard
-   URL: http://localhost:8080/admin/tokens
-   Login with admin credentials
-   Create new token with appropriate scopes
-   ```
+### 1. Per-Token Analytics
 
-2. **Test authentication:**
-   ```bash
-   curl -H "X-API-Token: your_v2_token" \
-     http://localhost:8080/api/v2/tickets/metadata
-   ```
-
-### Step 2: Test Parallel v1 and v2
-
-Run both versions side-by-side to compare:
-
-```javascript
-// Test script to compare v1 vs v2
-async function compareVersions() {
-  // Fetch from v1
-  const v1Response = await fetch('http://localhost:8080/api/v1/tickets', {
-    headers: { 'X-API-Key': 'v1_key' }
-  });
-  const v1Data = await v1Response.json();
-
-  // Fetch from v2
-  const v2Response = await fetch('http://localhost:8080/api/v2/tickets?page=1&per_page=100', {
-    headers: { 'X-API-Token': 'v2_token' }
-  });
-  const v2Data = await v2Response.json();
-
-  // Compare data counts
-  console.log('v1 count:', v1Data.total);
-  console.log('v2 count:', v2Data.pagination.total_items);
-
-  // Verify field mappings
-  const v1Ticket = v1Data.data[0];
-  const v2Ticket = v2Data.data[0];
-
-  console.log('v1 tickets_no:', v1Ticket.tickets_no);
-  console.log('v2 ticket_number:', v2Ticket.ticket_number);
-  console.log('Match:', v1Ticket.tickets_no === v2Ticket.ticket_number);
-}
+View detailed usage data for each token:
+```bash
+curl -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/analytics/tokens/1?days=7
 ```
 
-### Step 3: Update Your Code Gradually
+### 2. Endpoint Statistics
 
-**Strategy:**
-
-1. **Week 1-2:** Test v2 in development/staging
-2. **Week 3-4:** Deploy v2 alongside v1 in production
-3. **Month 2-3:** Migrate clients one by one
-4. **Month 4-5:** Monitor for v1 usage decline
-5. **Month 6:** Deprecate v1, return warnings
-6. **Month 7:** Sunset v1, return 410 Gone
-
-### Step 4: Monitor Migration Progress
-
-Use the token dashboard to track:
-- v1 vs v2 API usage
-- Which tokens are still using v1
-- Error rates during migration
-- Performance comparisons
-
----
-
-## FAQ
-
-### Q: Can I use both v1 and v2 simultaneously?
-
-**A:** Yes! Both versions will run side-by-side during the migration period. You can gradually migrate your applications one by one.
-
-### Q: Do I need new database credentials?
-
-**A:** No. Both v1 and v2 connect to the same databases. Only the API structure has changed.
-
-### Q: What happens to my v1 API key?
-
-**A:** v1 API keys will continue to work for v1 endpoints until the sunset date. However, you must create v2 tokens for v2 endpoints.
-
-### Q: Can I automatically convert v1 responses to v2 format?
-
-**A:** Yes, we provide conversion functions in our SDK. See the code examples above.
-
-### Q: How do I handle pagination in v2?
-
-**A:** v2 requires pagination for all list endpoints:
-```javascript
-// Get all tickets across pages
-async function getAllTicketsPaginated() {
-  let allTickets = [];
-  let page = 1;
-  let hasNext = true;
-
-  while (hasNext) {
-    const response = await getTickets(page, 100);
-    allTickets = allTickets.concat(response.tickets);
-    hasNext = response.pagination.has_next;
-    page++;
-  }
-
-  return allTickets;
-}
+See which endpoints are used most:
+```bash
+curl -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/analytics/endpoints?days=7&limit=20
 ```
 
-### Q: What if I find a bug during migration?
+### 3. Daily Usage Trends
 
-**A:** Report issues to:
-- GitHub Issues: https://github.com/your-org/api-gateway/issues
-- Email: support@example.com
-- Include `request_id` from error responses for faster resolution
-
-### Q: Can I test v2 without affecting production?
-
-**A:** Yes! Create a separate token with "test" scope:
-```
-Scope: test
-Environment: staging
-Rate Limit: 10 req/sec
+Track daily request volumes:
+```bash
+curl -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/analytics/daily?days=30
 ```
 
-### Q: How do I rotate tokens securely?
+### 4. Audit Logs
 
-**A:** Token rotation process:
-1. Create new token (Token B)
+Review all administrative actions:
+```bash
+curl -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/audit-logs?limit=100
+```
+
+### 5. Token Lifecycle Management
+
+```bash
+# Disable a token temporarily
+curl -X PATCH \
+  -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/tokens/1/disable
+
+# Re-enable it
+curl -X PATCH \
+  -H "X-Session-Token: sess_abc123" \
+  http://localhost:8080/api/v1/admin/tokens/1/enable
+```
+
+### 6. Token Rotation
+
+Rotate tokens without downtime:
+
+1. Create a new token (Token B)
 2. Update half of your services to use Token B
 3. Monitor for 24 hours
 4. Update remaining services to use Token B
 5. Disable old token (Token A)
 6. Delete Token A after 7 days
 
-### Q: Will v2 be faster?
+---
 
-**A:** Yes! v2 improvements include:
-- Pagination reduces payload size
-- Optimized database queries
-- Better caching
-- CDN support for metadata endpoints
+## FAQ
 
-Benchmarks show 30-50% faster response times on average.
+### Q: Can I use both `X-API-Key` and `X-API-Token` simultaneously?
 
-### Q: What if I can't migrate by the deadline?
+**A:** Yes. Both authentication methods work on all `/api/v1` endpoints. You can migrate your applications one at a time.
 
-**A:** Contact our support team at least 30 days before the sunset date. We can:
-- Extend v1 support for critical applications
-- Provide migration assistance
-- Offer custom transition plans
+### Q: Do the URLs change?
+
+**A:** No. All endpoints remain at `/api/v1/...`. Only the authentication header changes.
+
+### Q: Do response formats change?
+
+**A:** No. Request and response formats are identical regardless of which auth method you use.
+
+### Q: What happens if I don't migrate?
+
+**A:** The `X-API-Key` auth method continues to work. However, you won't benefit from rate limiting, usage analytics, scoped permissions, or any of the token management features.
+
+### Q: Do I need new database credentials?
+
+**A:** No. Both auth methods connect to the same `ticket_master` and `machine_master` databases. The token system uses a separate `token_management` database that the gateway manages internally.
+
+### Q: How do I handle rate limits?
+
+**A:** When rate limits are exceeded, the API returns `429 Too Many Requests`. Implement exponential backoff in your client:
+
+```javascript
+if (response.status === 429) {
+  await new Promise(r => setTimeout(r, 5000));
+  // Retry...
+}
+```
+
+### Q: Can I create tokens without the web dashboard?
+
+**A:** Yes. Use the admin API endpoints:
+1. Login: `POST /api/v1/admin/auth/login`
+2. Create token: `POST /api/v1/admin/tokens`
+
+### Q: How many tokens can I create?
+
+**A:** There is no hard limit. Create separate tokens per application, environment, or team as needed.
+
+### Q: What scopes are available?
+
+**A:** Scopes are flexible strings. Common patterns include:
+- `tickets:read` - Read ticket data
+- `tickets:write` - Create/update tickets
+- `machines:read` - Read machine data
+- `machines:write` - Update machine status
+
+If no scopes are defined on a token, all endpoints are accessible (backward compatibility).
+
+### Q: What if a token expires?
+
+**A:** Expired tokens return `401 Unauthorized`. Create a new token via the admin dashboard or API before the old one expires.
 
 ---
 
 ## Migration Checklist
 
-Use this checklist to track your migration progress:
-
 ### Pre-Migration
-- [ ] Read this migration guide completely
-- [ ] Access v2 API documentation
-- [ ] Create v2 token in admin dashboard
-- [ ] Test v2 endpoints in development
-- [ ] Update SDK/libraries to v2-compatible versions
+- [ ] Read this migration guide
+- [ ] Access the admin dashboard at `/admin`
+- [ ] Create an API token with appropriate scopes and rate limits
+- [ ] Save the token securely
 
 ### Code Changes
-- [ ] Update authentication (X-API-Key → X-API-Token)
-- [ ] Update base URL (/api/v1 → /api/v2)
-- [ ] Update field names (see Field Mappings section)
-- [ ] Add pagination handling
-- [ ] Update error handling
-- [ ] Update response parsing (handle new meta/pagination fields)
+- [ ] Replace `X-API-Key` header with `X-API-Token` header
+- [ ] Add `429 Too Many Requests` (rate limit) handling
+- [ ] Store the token securely (environment variable, secrets manager)
 
 ### Testing
-- [ ] Test all read operations (GET endpoints)
-- [ ] Test all write operations (POST/PUT/PATCH endpoints)
-- [ ] Test error scenarios
-- [ ] Compare v1 vs v2 responses
-- [ ] Load testing with v2
-- [ ] Test token permissions/scopes
-
-### Deployment
-- [ ] Deploy to staging environment
-- [ ] Run integration tests
-- [ ] Monitor error logs
-- [ ] Gradual rollout to production (10% → 50% → 100%)
-- [ ] Monitor performance metrics
-- [ ] Verify token usage analytics
+- [ ] Test all endpoints with the new token
+- [ ] Verify rate limits work as expected
+- [ ] Check usage logs in admin dashboard
 
 ### Post-Migration
-- [ ] Disable v1 token usage
-- [ ] Remove v1 code from codebase
-- [ ] Update internal documentation
-- [ ] Archive v1 credentials securely
-- [ ] Celebrate! 🎉
+- [ ] Monitor token analytics for errors
+- [ ] Disable old API key if all applications have migrated
+- [ ] Set up token rotation schedule
 
 ---
 
-## Support & Resources
+## Support
 
-### Documentation
-- **API v2 Documentation:** `API_DOCUMENTATION_V2.md`
-- **Token Management Guide:** `TOKEN_MANAGEMENT_GUIDE.md`
-- **Swagger UI v2:** http://localhost:8080/swagger/v2/index.html
-
-### Tools
-- **Token Dashboard:** http://localhost:8080/admin/tokens
-- **Migration Validator:** http://localhost:8080/admin/migration-checker
-- **API Playground:** http://localhost:8080/playground
-
-### Support Channels
-- **GitHub Issues:** https://github.com/your-org/api-gateway/issues
-- **Email Support:** support@example.com
-- **Slack Channel:** #api-migration
-- **Office Hours:** Tuesdays 2-4 PM (for migration assistance)
-
-### Example Code & SDKs
-- **JavaScript SDK:** https://github.com/your-org/api-sdk-js
-- **Python SDK:** https://github.com/your-org/api-sdk-python
-- **Go SDK:** https://github.com/your-org/api-sdk-go
-- **Migration Examples:** https://github.com/your-org/api-migration-examples
+- **Admin Dashboard:** `http://localhost:8080/admin`
+- **Swagger UI:** `http://localhost:8080/swagger/index.html`
+- **API Documentation:** See `API_DOCUMENTATION.md`
+- **Swagger Guide:** See `SWAGGER_GUIDE.md`
 
 ---
 
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2024-01-15 | Initial migration guide |
-| 1.1 | 2024-01-20 | Added Python examples |
-| 1.2 | 2024-01-25 | Added token rotation guide |
-| 1.3 | 2024-02-01 | Added pagination FAQ |
-
----
-
-*Last Updated: January 15, 2024*
-*For questions or assistance, contact: support@example.com*
+*Last Updated: February 2025*
