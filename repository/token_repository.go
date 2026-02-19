@@ -354,19 +354,24 @@ func (r *TokenRepository) DeleteToken(id int) error {
 
 // CreateUsageLog creates a new usage log entry
 func (r *TokenRepository) CreateUsageLog(log *models.TokenUsageLog) error {
+	// Set created_at if not already set
+	if log.CreatedAt.IsZero() {
+		log.CreatedAt = time.Now()
+	}
+
 	query := `
 		INSERT INTO token_usage_logs (
 			token_id, method, endpoint, full_url, status_code, response_time_ms,
 			ip_address, user_agent, referer, request_id, request_body_size,
-			response_body_size, error_message, error_code
+			response_body_size, error_message, error_code, created_at
 		)
-		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14)
+		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15)
 	`
 	_, err := r.db.Exec(query,
 		log.TokenID, log.Method, log.Endpoint, log.FullURL,
 		log.StatusCode, log.ResponseTimeMs, log.IPAddress, log.UserAgent,
 		log.Referer, log.RequestID, log.RequestBodySize, log.ResponseBodySize,
-		log.ErrorMessage, log.ErrorCode,
+		log.ErrorMessage, log.ErrorCode, log.CreatedAt,
 	)
 	return err
 }

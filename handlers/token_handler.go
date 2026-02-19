@@ -29,6 +29,17 @@ func NewTokenHandler(service *service.TokenService, logger *logrus.Logger) *Toke
 // ============================================================================
 
 // Login handles POST /api/v1/admin/auth/login
+// @Summary Admin Login
+// @Description Authenticate admin user and return session token
+// @Tags Admin Auth
+// @Accept json
+// @Produce json
+// @Param login body models.LoginRequest true "Login Credentials"
+// @Success 200 {object} models.LoginResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.LoginResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/auth/login [post]
 func (h *TokenHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -65,6 +76,14 @@ func (h *TokenHandler) Login(c *gin.Context) {
 }
 
 // Logout handles POST /api/v1/admin/auth/logout
+// @Summary Admin Logout
+// @Description Invalidate current session
+// @Tags Admin Auth
+// @Accept json
+// @Produce json
+// @Param X-Session-Token header string false "Session Token"
+// @Success 200 {object} map[string]interface{}
+// @Router /admin/auth/logout [post]
 func (h *TokenHandler) Logout(c *gin.Context) {
 	sessionToken := c.GetHeader("X-Session-Token")
 	if sessionToken == "" {
@@ -85,6 +104,13 @@ func (h *TokenHandler) Logout(c *gin.Context) {
 }
 
 // GetCurrentUser handles GET /api/v1/admin/auth/me
+// @Summary Get Current User
+// @Description Get details of currently logged in admin
+// @Tags Admin Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /admin/auth/me [get]
 func (h *TokenHandler) GetCurrentUser(c *gin.Context) {
 	adminID, _ := c.Get("admin_id")
 	adminUsername, _ := c.Get("admin_username")
@@ -105,6 +131,14 @@ func (h *TokenHandler) GetCurrentUser(c *gin.Context) {
 // ============================================================================
 
 // ListTokens handles GET /api/v1/admin/tokens
+// @Summary List API Tokens
+// @Description Get all API tokens
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.TokenListResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens [get]
 func (h *TokenHandler) ListTokens(c *gin.Context) {
 	tokens, err := h.service.GetAllTokens()
 	if err != nil {
@@ -129,6 +163,16 @@ func (h *TokenHandler) ListTokens(c *gin.Context) {
 }
 
 // CreateToken handles POST /api/v1/admin/tokens
+// @Summary Create API Token
+// @Description Create a new API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param token body models.CreateTokenRequest true "Token Details"
+// @Success 201 {object} models.CreateTokenResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens [post]
 func (h *TokenHandler) CreateToken(c *gin.Context) {
 	var req models.CreateTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -160,6 +204,16 @@ func (h *TokenHandler) CreateToken(c *gin.Context) {
 }
 
 // GetToken handles GET /api/v1/admin/tokens/:id
+// @Summary Get API Token
+// @Description Get details of a specific API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Success 200 {object} models.TokenResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Router /admin/tokens/{id} [get]
 func (h *TokenHandler) GetToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -186,6 +240,17 @@ func (h *TokenHandler) GetToken(c *gin.Context) {
 }
 
 // UpdateToken handles PUT /api/v1/admin/tokens/:id
+// @Summary Update API Token
+// @Description Update details of an existing API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Param token body models.UpdateTokenRequest true "Update Details"
+// @Success 200 {object} models.TokenResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens/{id} [put]
 func (h *TokenHandler) UpdateToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -225,6 +290,16 @@ func (h *TokenHandler) UpdateToken(c *gin.Context) {
 }
 
 // DeleteToken handles DELETE /api/v1/admin/tokens/:id
+// @Summary Delete API Token
+// @Description Permanently delete an API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens/{id} [delete]
 func (h *TokenHandler) DeleteToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -254,6 +329,16 @@ func (h *TokenHandler) DeleteToken(c *gin.Context) {
 }
 
 // DisableToken handles PATCH /api/v1/admin/tokens/:id/disable
+// @Summary Disable API Token
+// @Description Temporarily disable an API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens/{id}/disable [patch]
 func (h *TokenHandler) DisableToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -282,6 +367,16 @@ func (h *TokenHandler) DisableToken(c *gin.Context) {
 }
 
 // EnableToken handles PATCH /api/v1/admin/tokens/:id/enable
+// @Summary Enable API Token
+// @Description Re-enable a disabled API token
+// @Tags Token Management
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens/{id}/enable [patch]
 func (h *TokenHandler) EnableToken(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -314,6 +409,14 @@ func (h *TokenHandler) EnableToken(c *gin.Context) {
 // ============================================================================
 
 // GetDashboardStats handles GET /api/v1/admin/analytics/dashboard
+// @Summary Get Dashboard Stats
+// @Description Get overview statistics for the admin dashboard
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/analytics/dashboard [get]
 func (h *TokenHandler) GetDashboardStats(c *gin.Context) {
 	stats, err := h.service.GetDashboardStats()
 	if err != nil {
@@ -332,6 +435,17 @@ func (h *TokenHandler) GetDashboardStats(c *gin.Context) {
 }
 
 // GetTokenAnalytics handles GET /api/v1/admin/analytics/tokens/:id
+// @Summary Get Token Analytics
+// @Description Get detailed analytics for a specific token
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Param days query int false "Number of days (default 7)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/analytics/tokens/{id} [get]
 func (h *TokenHandler) GetTokenAnalytics(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -365,6 +479,16 @@ func (h *TokenHandler) GetTokenAnalytics(c *gin.Context) {
 }
 
 // GetEndpointStats handles GET /api/v1/admin/analytics/endpoints
+// @Summary Get Endpoint Stats
+// @Description Get usage statistics by endpoint
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Param days query int false "Number of days (default 7)"
+// @Param limit query int false "Limit results (default 20)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/analytics/endpoints [get]
 func (h *TokenHandler) GetEndpointStats(c *gin.Context) {
 	days := 7
 	if d := c.Query("days"); d != "" {
@@ -400,6 +524,16 @@ func (h *TokenHandler) GetEndpointStats(c *gin.Context) {
 }
 
 // GetDailyUsage handles GET /api/v1/admin/analytics/daily
+// @Summary Get Daily Usage
+// @Description Get daily request volume
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Param days query int false "Number of days (default 30)"
+// @Param token_id query int false "Filter by Token ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/analytics/daily [get]
 func (h *TokenHandler) GetDailyUsage(c *gin.Context) {
 	days := 30
 	if d := c.Query("days"); d != "" {
@@ -435,6 +569,17 @@ func (h *TokenHandler) GetDailyUsage(c *gin.Context) {
 }
 
 // GetTokenUsageLogs handles GET /api/v1/admin/tokens/:id/logs
+// @Summary Get Token Logs
+// @Description Get access logs for a specific token
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Param id path int true "Token ID"
+// @Param limit query int false "Limit results (default 100)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/tokens/{id}/logs [get]
 func (h *TokenHandler) GetTokenUsageLogs(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -473,6 +618,15 @@ func (h *TokenHandler) GetTokenUsageLogs(c *gin.Context) {
 }
 
 // GetAuditLogs handles GET /api/v1/admin/audit-logs
+// @Summary Get Audit Logs
+// @Description Get administrative audit logs
+// @Tags Admin Auth
+// @Accept json
+// @Produce json
+// @Param limit query int false "Limit results (default 100)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} models.ErrorResponse
+// @Router /admin/audit-logs [get]
 func (h *TokenHandler) GetAuditLogs(c *gin.Context) {
 	limit := 100
 	if l := c.Query("limit"); l != "" {

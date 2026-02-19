@@ -1,298 +1,369 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="corporate">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL // API_GATEWAY</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>API Gateway - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* Layout */
         :root {
-            --bg-color: #0a0a0a;
-            --primary: #33ff00;
-            --primary-dim: rgba(51, 255, 0, 0.1);
-            --secondary: #ffb000;
-            --muted: #1f521f;
-            --error: #ff3333;
-            --text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);
+            --sidebar-w: 256px;
+            --sidebar-w-collapsed: 72px;
+            --navbar-h: 64px;
         }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--primary);
-            font-family: 'JetBrains Mono', monospace;
-            overflow-x: hidden;
+        .stat-card {
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        /* Scanline Overlay */
-        .scanlines {
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        /* Sidebar */
+        #sidebar {
             position: fixed;
-            top: 0;
+            top: var(--navbar-h);
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0,0,0,0.2) 50%,
-                rgba(0,0,0,0.2)
-            );
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 9999;
-            opacity: 0.6;
+            bottom: 0;
+            width: var(--sidebar-w);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 20;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
-        /* Typography & Effects */
-        .text-glow { text-shadow: var(--text-shadow); }
-        .text-secondary { color: var(--secondary); text-shadow: 0 0 5px rgba(255, 176, 0, 0.5); }
-        .text-error { color: var(--error); text-shadow: 0 0 5px rgba(255, 51, 51, 0.5); }
-        .text-muted { color: var(--muted); text-shadow: none; }
-
-        h1, h2, h3, h4, .section-header {
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        /* Main content */
+        #main-wrapper {
+            padding-top: var(--navbar-h);
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Layout Primitives */
-        .terminal-border {
-            border: 1px solid var(--muted);
+        /* Sidebar text transition */
+        .sidebar-text {
+            transition: opacity 0.15s ease, max-width 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            max-width: 200px;
         }
 
-        .terminal-box {
-            border: 1px solid var(--muted);
-            background: var(--bg-color);
-            position: relative;
+        .sidebar-footer {
+            transition: opacity 0.2s ease;
         }
 
-        .terminal-header {
-            border-bottom: 1px solid var(--muted);
-            padding: 0.5rem 1rem;
-            background: var(--primary-dim);
-            font-weight: bold;
-            display: flex;
-            align-items: center;
+        /* ── Desktop ────────────────────────────────── */
+        @media (min-width: 1024px) {
+            #main-wrapper {
+                margin-left: var(--sidebar-w);
+            }
+
+            /* Collapsed state */
+            body.sidebar-collapsed #sidebar {
+                width: var(--sidebar-w-collapsed);
+            }
+
+            body.sidebar-collapsed #main-wrapper {
+                margin-left: var(--sidebar-w-collapsed);
+            }
+
+            body.sidebar-collapsed .sidebar-text {
+                opacity: 0;
+                max-width: 0;
+            }
+
+            body.sidebar-collapsed .sidebar-footer {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            body.sidebar-collapsed #sidebar .menu {
+                padding: 0.5rem;
+            }
+
+            body.sidebar-collapsed #sidebar .menu a {
+                justify-content: center;
+                padding-inline: 0;
+                gap: 0;
+            }
+
+            body.sidebar-collapsed #sidebar .menu li {
+                position: relative;
+            }
+
+            /* Tooltip on hover when collapsed */
+            body.sidebar-collapsed #sidebar .menu a[data-tip]:hover::after {
+                content: attr(data-tip);
+                position: absolute;
+                left: calc(100% + 10px);
+                top: 50%;
+                transform: translateY(-50%);
+                background: #1f2937;
+                color: #fff;
+                padding: 4px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+                white-space: nowrap;
+                z-index: 100;
+                pointer-events: none;
+                box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+            }
+
+            /* Toggle icon rotation */
+            body.sidebar-collapsed #toggle-icon {
+                transform: rotate(180deg);
+            }
         }
 
-        .terminal-header::before { content: "[ "; color: var(--muted); }
-        .terminal-header::after { content: " ]"; color: var(--muted); }
+        /* ── Mobile ──────────────────────────────────── */
+        @media (max-width: 1023px) {
+            #sidebar {
+                transform: translateX(-100%);
+                width: var(--sidebar-w);
+            }
 
-        /* Buttons */
-        .btn-terminal {
+            body.sidebar-open #sidebar {
+                transform: translateX(0);
+            }
+
+            #main-wrapper {
+                margin-left: 0 !important;
+            }
+        }
+
+        #sidebar-overlay {
+            transition: opacity 0.3s ease;
+        }
+
+        #toggle-icon {
+            transition: transform 0.3s ease;
+        }
+
+        /* Scrollbar styling for sidebar */
+        #sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
             background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 0.25rem 1rem;
-            cursor: pointer;
-            transition: all 0.1s;
-            text-transform: uppercase;
-            font-family: 'JetBrains Mono', monospace;
-            display: inline-block;
-        }
-        .btn-terminal:hover {
-            background: var(--primary);
-            color: var(--bg-color);
-            box-shadow: 0 0 10px var(--primary);
-        }
-        .btn-terminal::before { content: "["; margin-right: 0.5em; opacity: 0.5; }
-        .btn-terminal::after { content: "]"; margin-left: 0.5em; opacity: 0.5; }
-
-        .btn-sm { padding: 0.1rem 0.5rem; font-size: 0.8rem; }
-        .btn-danger { border-color: var(--error); color: var(--error); }
-        .btn-danger:hover { background: var(--error); color: var(--bg-color); box-shadow: 0 0 10px var(--error); }
-
-        /* Inputs */
-        input, select, textarea {
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--muted);
-            color: var(--primary);
-            font-family: 'JetBrains Mono', monospace;
-            padding: 0.5rem;
-            width: 100%;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-bottom-color: var(--primary);
-            background: var(--primary-dim);
-        }
-        .input-group-label { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.2rem; display: block; }
-
-        /* Navigation */
-        .nav-item {
-            display: block;
-            padding: 0.5rem 1rem;
-            color: var(--muted);
-            text-decoration: none;
-            border-left: 2px solid transparent;
-        }
-        .nav-item:hover { color: var(--primary); background: var(--primary-dim); }
-        .nav-item.active {
-            color: var(--primary);
-            border-left: 2px solid var(--primary);
-            background: var(--primary-dim);
-            text-shadow: var(--text-shadow);
-        }
-        .nav-item::before { content: "> "; opacity: 0; }
-        .nav-item.active::before { opacity: 1; }
-
-        /* Scrollbars */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-color); border-left: 1px solid var(--muted); }
-        ::-webkit-scrollbar-thumb { background: var(--muted); }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-        /* Tables */
-        .terminal-table { width: 100%; border-collapse: collapse; }
-        .terminal-table th {
-            text-align: left;
-            padding: 0.5rem;
-            border-bottom: 1px dashed var(--muted);
-            color: var(--secondary);
-            text-transform: uppercase;
-            font-size: 0.8rem;
-        }
-        .terminal-table td { padding: 0.5rem; border-bottom: 1px solid #111; }
-        .terminal-table tr:hover td { background: var(--primary-dim); }
-
-        /* Utilities */
-        .blink { animation: blink-animation 1s steps(2, start) infinite; }
-        @keyframes blink-animation { to { visibility: hidden; } }
-
-        .cursor-block {
-            display: inline-block;
-            width: 0.6em;
-            height: 1.2em;
-            background-color: var(--primary);
-            vertical-align: text-bottom;
-            animation: blink-animation 1s steps(2, start) infinite;
+            border-radius: 4px;
         }
 
-        /* Modals */
-        dialog {
-            background: var(--bg-color);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 0;
-            max-width: 800px;
-            width: 90%;
-            box-shadow: 0 0 20px rgba(51, 255, 0, 0.2);
+        #sidebar:hover::-webkit-scrollbar-thumb {
+            background: oklch(0.8 0 0);
         }
-        dialog::backdrop { background: rgba(0,0,0,0.8); }
-        .modal-header {
-            background: var(--primary);
-            color: var(--bg-color);
-            padding: 0.5rem 1rem;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-        }
-        .modal-body { padding: 1.5rem; }
-        .modal-actions {
-            padding: 1rem;
-            border-top: 1px dashed var(--muted);
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-
-        /* Status Badges */
-        .badge { display: inline-block; padding: 0 0.5em; border: 1px solid currentColor; font-size: 0.75em; text-transform: uppercase; }
-        .badge-success { color: var(--primary); border-color: var(--primary); }
-        .badge-error { color: var(--error); border-color: var(--error); }
-        .badge-warning { color: var(--secondary); border-color: var(--secondary); }
-        .badge-dim { color: var(--muted); border-color: var(--muted); }
-
     </style>
 </head>
-<body class="h-screen flex flex-col">
-    <div class="scanlines"></div>
 
-    <!-- Top Bar -->
-    <header class="border-b border-[#1f521f] p-2 flex justify-between items-center bg-[#0a0a0a] z-10">
-        <div class="flex items-center gap-4">
-            <span class="text-xl font-bold tracking-wider text-glow">BASTET_CLOUD // GATEWAY</span>
-            <span class="badge badge-success">ONLINE</span>
-        </div>
-        <div class="flex items-center gap-4 text-sm">
-            <span>USER: <span id="adminName" class="text-secondary">ADMIN</span></span>
-            <span class="text-muted">|</span>
-            <button onclick="handleLogout()" class="hover:text-white underline decoration-dashed">[ LOGOUT ]</button>
-        </div>
-    </header>
+<body class="bg-base-200 min-h-screen">
 
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 border-r border-[#1f521f] flex flex-col bg-[#050505]">
-            <div class="p-4 border-b border-[#1f521f] text-xs text-muted">
-                MOUNT: /sys/admin
-            </div>
-            <nav class="flex-1 py-4">
-                <a onclick="showSection('dashboard')" class="nav-item active" id="nav-dashboard">~/dashboard</a>
-                <a onclick="showSection('tokens')" class="nav-item" id="nav-tokens">~/api_tokens</a>
-                <a onclick="showSection('analytics')" class="nav-item" id="nav-analytics">~/analytics</a>
-                <a onclick="showSection('audit')" class="nav-item" id="nav-audit">~/audit_logs</a>
-            </nav>
-            <div class="p-4 border-t border-[#1f521f] text-xs">
-                <div class="flex justify-between text-muted mb-1">
-                    <span>CPU</span>
-                    <span>[|||||.....]</span>
+    <!-- ═══════════════════════════════════════════════
+         Fixed Navbar
+         ═══════════════════════════════════════════════ -->
+    <nav class="navbar fixed top-0 left-0 right-0 h-16 z-30 bg-base-100 border-b border-base-300 px-2 lg:px-4">
+        <div class="flex-1 gap-1">
+            <!-- Sidebar toggle -->
+            <button onclick="toggleSidebar()" class="btn btn-ghost btn-sm btn-square" aria-label="Toggle sidebar">
+                <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+                </svg>
+            </button>
+
+            <a href="/admin/dashboard" class="btn btn-ghost font-bold gap-2 text-lg px-2">
+                <div class="w-16 h-8 text-primary-content flex items-center justify-center">
+                    <img src="./assets/atmi-logo.PNG" alt="API Gateway Logo" class="object-contain" />
                 </div>
-                <div class="flex justify-between text-muted">
-                    <span>MEM</span>
-                    <span>[||||......]</span>
-                </div>
-            </div>
-        </aside>
+                <span class="hidden sm:inline">API Gateway</span>
+            </a>
 
-        <!-- Main Content -->
-        <main class="flex-1 overflow-auto p-6 relative">
+            <span class="badge badge-outline badge-success badge-sm ml-1">
+                <div class="inline-grid *:[grid-area:1/1]">
+                    <div class="status status-success animate-ping"></div>
+                    <div class="status status-success"></div>
+                </div>
+                Online
+            </span>
+        </div>
+        <div class="flex-none gap-2 p-4">
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
+                    <div class="bg-neutral text-neutral-content rounded-full w-10 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="size-6">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                        </svg>
+                    </div>
+                </div>
+                <ul tabindex="0"
+                    class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
+                    <li class="menu-title"><span id="adminName" class="badge badge-neutral text-sm"></span></li>
+                    <li class="menu-title" id="fullName"></li>
+                    <li><a onclick="handleLogout()" class="text-error">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                            </svg>
+                            Logout
+                        </a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════
+         Sidebar
+         ═══════════════════════════════════════════════ -->
+    <aside id="sidebar" class="bg-base-100 border-r border-base-300 flex flex-col">
+        <ul class="menu p-2 text-base-content w-full gap-1 flex-1">
+            <li><a onclick="showSection('dashboard')" class="active" id="nav-dashboard" data-tip="Dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="w-5 h-5 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
+                    </svg>
+                    <span class="sidebar-text">Dashboard</span>
+                </a></li>
+            <li><a onclick="showSection('tokens')" id="nav-tokens" data-tip="API Tokens">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="w-5 h-5 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                    </svg>
+                    <span class="sidebar-text">API Tokens</span>
+                </a></li>
+            <li><a onclick="showSection('analytics')" id="nav-analytics" data-tip="Analytics">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="w-5 h-5 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                    </svg>
+                    <span class="sidebar-text">Analytics</span>
+                </a></li>
+            <li><a onclick="showSection('audit')" id="nav-audit" data-tip="Audit Logs">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="w-5 h-5 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15a2.25 2.25 0 0 1 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
+                    </svg>
+                    <span class="sidebar-text">Audit Logs</span>
+                </a></li>
+        </ul>
+        <div class="sidebar-footer p-4 border-t border-base-300">
+            <div class="text-xs text-center text-base-content/50">
+                &copy; Wahyu Bimo - Made with <span class="text-error">❤</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile overlay -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-10 hidden lg:!hidden" onclick="toggleSidebar()">
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         Main Content
+         ═══════════════════════════════════════════════ -->
+    <div id="main-wrapper" class="min-h-screen">
+        <main id="main-content" class="p-6 w-full max-w-7xl mx-auto">
 
             <!-- Dashboard Section -->
             <div id="section-dashboard">
-                <h2 class="text-2xl mb-6 flex items-center gap-2"><span class="text-secondary">></span> SYSTEM_STATUS</h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Overview</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M2.985 19.644l3.181-3.182" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
 
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <div class="terminal-box p-4">
-                        <div class="text-xs text-muted mb-1">TOTAL_TOKENS</div>
-                        <div class="text-3xl font-bold text-glow" id="stat-total">0</div>
+                <div class="stats stats-vertical bg-base-100 lg:stats-horizontal shadow w-full mb-8">
+                    <div class="stat stat-card">
+                        <div class="stat-figure text-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" class="w-8 h-8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                            </svg>
+                        </div>
+                        <div class="stat-title">Total Tokens</div>
+                        <div class="stat-value text-primary" id="stat-total">0</div>
+                        <div class="stat-desc">Registered API keys</div>
                     </div>
-                    <div class="terminal-box p-4">
-                        <div class="text-xs text-muted mb-1">ACTIVE_TOKENS</div>
-                        <div class="text-3xl font-bold text-glow text-secondary" id="stat-active">0</div>
+                    <div class="stat stat-card">
+                        <div class="stat-figure text-success">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" class="w-8 h-8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </div>
+                        <div class="stat-title">Active Tokens</div>
+                        <div class="stat-value text-success" id="stat-active">0</div>
+                        <div class="stat-desc">Currently in use</div>
                     </div>
-                    <div class="terminal-box p-4">
-                        <div class="text-xs text-muted mb-1">REQUESTS_24H</div>
-                        <div class="text-3xl font-bold text-glow" id="stat-requests">0</div>
+                    <div class="stat stat-card">
+                        <div class="stat-figure text-info">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" class="w-8 h-8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+                            </svg>
+                        </div>
+                        <div class="stat-title">Requests (24h)</div>
+                        <div class="stat-value text-info" id="stat-requests">0</div>
+                        <div class="stat-desc">Total volume</div>
                     </div>
-                    <div class="terminal-box p-4">
-                        <div class="text-xs text-muted mb-1">SUCCESS_RATE</div>
-                        <div class="text-3xl font-bold text-glow text-secondary" id="stat-success">0%</div>
+                    <div class="stat stat-card">
+                        <div class="stat-figure text-warning">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" class="w-8 h-8">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                            </svg>
+                        </div>
+                        <div class="stat-title">Success Rate</div>
+                        <div class="stat-value text-warning" id="stat-success">0%</div>
+                        <div class="stat-desc">Last 24 hours</div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Chart -->
-                    <div class="terminal-box">
-                        <div class="terminal-header">TRAFFIC_MONITOR</div>
-                        <div class="p-4">
-                            <canvas id="dailyChart" height="200"></canvas>
+                    <div class="card bg-base-100 shadow">
+                        <div class="card-body">
+                            <h3 class="card-title text-lg">Traffic (Last 7 Days)</h3>
+                            <div class="h-64">
+                                <canvas id="dailyChart"></canvas>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Top Endpoints -->
-                    <div class="terminal-box">
-                        <div class="terminal-header">TOP_PROCESSES</div>
-                        <div class="p-0 overflow-x-auto">
-                            <table class="terminal-table" id="endpointsTable">
-                                <thead><tr><th>ENDPOINT</th><th>METHOD</th><th>REQS</th><th>LATENCY</th></tr></thead>
-                                <tbody></tbody>
-                            </table>
+                    <div class="card bg-base-100 shadow">
+                        <div class="card-body">
+                            <h3 class="card-title text-lg">Top Endpoints</h3>
+                            <div class="overflow-x-auto">
+                                <table class="table table-sm table-zebra" id="endpointsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Endpoint</th>
+                                            <th>Method</th>
+                                            <th class="text-right">Requests</th>
+                                            <th class="text-right">Latency</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -301,23 +372,28 @@
             <!-- Tokens Section -->
             <div id="section-tokens" class="hidden">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl flex items-center gap-2"><span class="text-secondary">></span> API_KEY_MANAGEMENT</h2>
-                    <button onclick="showCreateTokenModal()" class="btn-terminal">INIT_NEW_KEY</button>
+                    <h2 class="text-2xl font-bold">API Tokens</h2>
+                    <button onclick="showCreateTokenModal()" class="btn btn-primary btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Create Token
+                    </button>
                 </div>
 
-                <div class="terminal-box">
-                    <div class="terminal-header">KEY_REGISTRY</div>
+                <div class="card bg-base-100 shadow">
                     <div class="overflow-x-auto">
-                        <table class="terminal-table" id="tokensTable">
+                        <table class="table" id="tokensTable">
                             <thead>
                                 <tr>
-                                    <th>NAME / DESC</th>
-                                    <th>HASH_FRAGMENT</th>
-                                    <th>ENV</th>
-                                    <th>STATUS</th>
-                                    <th>USAGE</th>
-                                    <th>LAST_ACCESS</th>
-                                    <th>COMMANDS</th>
+                                    <th>Token Details</th>
+                                    <th>Prefix</th>
+                                    <th>Env</th>
+                                    <th>Status</th>
+                                    <th>Usage</th>
+                                    <th>Last Active</th>
+                                    <th class="text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="tokensBody"></tbody>
@@ -328,36 +404,63 @@
 
             <!-- Analytics Section -->
             <div id="section-analytics" class="hidden">
-                <h2 class="text-2xl mb-6 flex items-center gap-2"><span class="text-secondary">></span> NETWORK_ANALYSIS</h2>
-
-                <div class="terminal-box mb-6">
-                    <div class="terminal-header">PACKET_VOLUME</div>
-                    <div class="p-4">
-                        <canvas id="analyticsChart" height="300"></canvas>
+                <h2 class="text-2xl font-bold mb-6">Detailed Analytics</h2>
+                <div class="card bg-base-100 shadow mb-6">
+                    <div class="card-body">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="card-title text-lg">Request Volume & Status</h3>
+                            <select class="select select-bordered select-sm" onchange="loadAnalytics(this.value)">
+                                <option value="7">Last 7 Days</option>
+                                <option value="30" selected>Last 30 Days</option>
+                                <option value="90">Last 90 Days</option>
+                            </select>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="analyticsChart"></canvas>
+                        </div>
                     </div>
                 </div>
-
-                <div class="terminal-box">
-                    <div class="terminal-header">ENDPOINT_PERFORMANCE</div>
-                    <div class="overflow-x-auto">
-                        <table class="terminal-table" id="analyticsEndpointsTable">
-                            <thead><tr><th>ENDPOINT</th><th>METHOD</th><th>TOTAL</th><th>ACK</th><th>ERR</th><th>AVG_MS</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body">
+                        <h3 class="card-title text-lg mb-4">Endpoint Performance</h3>
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra" id="analyticsEndpointsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Endpoint</th>
+                                        <th>Method</th>
+                                        <th class="text-right">Total</th>
+                                        <th class="text-right text-success">Success</th>
+                                        <th class="text-right text-error">Failed</th>
+                                        <th class="text-right">Avg Latency</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Audit Logs Section -->
             <div id="section-audit" class="hidden">
-                <h2 class="text-2xl mb-6 flex items-center gap-2"><span class="text-secondary">></span> SYSTEM_LOGS</h2>
-                <div class="terminal-box">
-                    <div class="terminal-header">VAR/LOG/AUDIT</div>
-                    <div class="overflow-x-auto">
-                        <table class="terminal-table" id="auditTable">
-                            <thead><tr><th>TIMESTAMP</th><th>OP_CODE</th><th>TARGET</th><th>DETAILS</th><th>SRC_IP</th></tr></thead>
-                            <tbody id="auditBody"></tbody>
-                        </table>
+                <h2 class="text-2xl font-bold mb-6">Audit Logs</h2>
+                <div class="card bg-base-100 shadow">
+                    <div class="card-body p-0">
+                        <div class="overflow-x-auto">
+                            <table class="table" id="auditTable">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Action</th>
+                                        <th>Resource</th>
+                                        <th>Description</th>
+                                        <th>IP Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -365,104 +468,188 @@
         </main>
     </div>
 
+    <!-- Context Menu (rendered outside table to avoid overflow clipping) -->
+    <div id="tokenContextMenu" class="fixed z-50 hidden">
+        <ul class="menu bg-base-100 rounded-box shadow-lg border border-base-300 w-36 p-1">
+        </ul>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         Modals
+         ═══════════════════════════════════════════════ -->
+
     <!-- Create Token Modal -->
-    <dialog id="createTokenModal">
-        <div class="modal-header">
-            <span>> NEW_TOKEN_WIZARD</span>
-            <button onclick="document.getElementById('createTokenModal').close()" class="hover:text-white">X</button>
+    <dialog id="createTokenModal" class="modal">
+        <div class="modal-box w-11/12 max-w-2xl">
+            <h3 class="font-bold text-lg mb-4">Create New API Token</h3>
+            <form id="createTokenForm" onsubmit="handleCreateToken(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Token Name *</span></label>
+                        <input type="text" name="name" class="input input-bordered" required
+                            placeholder="e.g. Mobile App Prod" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Environment *</span></label>
+                        <select name="environment" class="select select-bordered" required>
+                            <option value="production">Production</option>
+                            <option value="staging">Staging</option>
+                            <option value="development" selected>Development</option>
+                            <option value="test">Test</option>
+                        </select>
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label"><span class="label-text">Description</span></label>
+                        <textarea name="description" class="textarea textarea-bordered h-20"
+                            placeholder="Describe the purpose of this token..."></textarea>
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Scopes</span> <span
+                                class="label-text-alt text-base-content/50">(comma-separated)</span></label>
+                        <input type="text" name="scopes" class="input input-bordered"
+                            placeholder="tickets:read, machines:write" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Expiration Date</span> <span
+                                class="label-text-alt text-base-content/50">(optional)</span></label>
+                        <input type="datetime-local" name="expires_at" class="input input-bordered" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Rate Limit / Min</span></label>
+                        <input type="number" name="rate_limit_per_minute" class="input input-bordered" value="100" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Rate Limit / Hour</span></label>
+                        <input type="number" name="rate_limit_per_hour" class="input input-bordered" value="5000" />
+                    </div>
+                    <div class="form-control md:col-span-2">
+                        <label class="label"><span class="label-text">IP Whitelist</span> <span
+                                class="label-text-alt text-base-content/50">(comma-separated IPs/CIDRs)</span></label>
+                        <input type="text" name="ip_whitelist" class="input input-bordered"
+                            placeholder="e.g. 192.168.1.1, 10.0.0.0/8" />
+                    </div>
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn btn-ghost"
+                        onclick="document.getElementById('createTokenModal').close()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Token</button>
+                </div>
+            </form>
         </div>
-        <form id="createTokenForm" onsubmit="handleCreateToken(event)">
-            <div class="modal-body grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="input-group-label">TOKEN_IDENTIFIER *</label>
-                    <input type="text" name="name" required placeholder="e.g. prod_service_01" autocomplete="off" />
-                </div>
-                <div>
-                    <label class="input-group-label">ENVIRONMENT *</label>
-                    <select name="environment" required>
-                        <option value="production">PRODUCTION</option>
-                        <option value="staging">STAGING</option>
-                        <option value="development" selected>DEVELOPMENT</option>
-                        <option value="test">TEST_SUITE</option>
-                    </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="input-group-label">DESCRIPTION</label>
-                    <textarea name="description" rows="2" placeholder="Purpose of this access key..."></textarea>
-                </div>
-                <div>
-                    <label class="input-group-label">SCOPES (CSV)</label>
-                    <input type="text" name="scopes" placeholder="read:all, write:logs" />
-                </div>
-                <div>
-                    <label class="input-group-label">EXPIRATION</label>
-                    <input type="datetime-local" name="expires_at" />
-                </div>
-                <div>
-                    <label class="input-group-label">LIMIT_PER_MIN</label>
-                    <input type="number" name="rate_limit_per_minute" value="100" />
-                </div>
-                <div>
-                    <label class="input-group-label">LIMIT_PER_HOUR</label>
-                    <input type="number" name="rate_limit_per_hour" value="5000" />
-                </div>
-                <div class="md:col-span-2">
-                    <label class="input-group-label">IP_WHITELIST (CIDR/IP)</label>
-                    <input type="text" name="ip_whitelist" placeholder="10.0.0.0/8, 192.168.1.5" />
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-terminal btn-danger" onclick="document.getElementById('createTokenModal').close()">CANCEL</button>
-                <button type="submit" class="btn-terminal">GENERATE_TOKEN</button>
-            </div>
-        </form>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>
 
     <!-- Token Created Modal -->
-    <dialog id="tokenCreatedModal">
-        <div class="modal-header">
-            <span class="text-[#0a0a0a]">SUCCESS</span>
-            <!-- Inverted header for success -->
-            <style>#tokenCreatedModal .modal-header { background: var(--primary); color: black; }</style>
-        </div>
-        <div class="modal-body">
-            <div class="border border-yellow-500 p-4 mb-4 text-yellow-500 text-sm">
-                [WARNING]: SECRET KEY VISIBLE. COPY IMMEDIATELY. CANNOT BE RETRIEVED LATER.
+    <dialog id="tokenCreatedModal" class="modal">
+        <div class="modal-box">
+            <div class="flex flex-col items-center mb-4">
+                <div class="w-16 h-16 bg-success/20 text-success rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                        stroke="currentColor" class="w-8 h-8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                </div>
+                <h3 class="font-bold text-xl">Token Created!</h3>
             </div>
-            <div class="mb-4">
-                <label class="input-group-label">ACCESS_TOKEN</label>
-                <div class="flex gap-2">
-                    <input type="text" id="newTokenValue" readonly class="font-bold text-lg" />
-                    <button class="btn-terminal" onclick="copyToken()">COPY</button>
+
+            <div class="alert alert-warning text-sm mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="currentColor" class="w-5 h-5 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+                <span>Please copy this token now. You won't be able to see it again!</span>
+            </div>
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">API Token</span></label>
+                <div class="join w-full">
+                    <input type="text" id="newTokenValue"
+                        class="input input-bordered input-primary join-item w-full font-mono text-sm bg-base-200"
+                        readonly />
+                    <button class="btn btn-primary join-item" onclick="copyToken()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                        </svg>
+                        Copy
+                    </button>
                 </div>
             </div>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-terminal" onclick="document.getElementById('tokenCreatedModal').close(); loadTokens();">ACKNOWLEDGE</button>
+            <div class="modal-action">
+                <button class="btn" onclick="document.getElementById('tokenCreatedModal').close(); loadTokens();">I have
+                    copied it</button>
+            </div>
         </div>
     </dialog>
 
     <!-- Token Detail Modal -->
-    <dialog id="tokenDetailModal">
-        <div class="modal-header">
-            <span id="tokenDetailTitle">TOKEN_DETAILS</span>
-            <button onclick="document.getElementById('tokenDetailModal').close()" class="hover:text-white">X</button>
+    <dialog id="tokenDetailModal" class="modal">
+        <div class="modal-box w-11/12 max-w-4xl">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="font-bold text-2xl" id="tokenDetailTitle">Token Details</h3>
+                    <div class="text-sm text-base-content/60 mt-1" id="tokenDetailEnv"></div>
+                </div>
+                <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button></form>
+            </div>
+            <div id="tokenDetailContent"></div>
         </div>
-        <div class="modal-body" id="tokenDetailContent"></div>
-        <div class="modal-actions">
-            <button class="btn-terminal" onclick="document.getElementById('tokenDetailModal').close()">CLOSE_WINDOW</button>
-        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>
 
+    <!-- ═══════════════════════════════════════════════
+         Scripts
+         ═══════════════════════════════════════════════ -->
     <script>
+        // ── Sidebar ────────────────────────────────────
+        function toggleSidebar() {
+            const isDesktop = window.innerWidth >= 1024;
+            if (isDesktop) {
+                document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebar-collapsed', document.body.classList.contains('sidebar-collapsed'));
+            } else {
+                const isOpen = document.body.classList.toggle('sidebar-open');
+                document.getElementById('sidebar-overlay').classList.toggle('hidden', !isOpen);
+            }
+        }
+
+        function closeMobileSidebar() {
+            document.body.classList.remove('sidebar-open');
+            document.getElementById('sidebar-overlay').classList.add('hidden');
+        }
+
+        // Restore desktop sidebar state
+        if (window.innerWidth >= 1024 && localStorage.getItem('sidebar-collapsed') === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        // Clean up on resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                closeMobileSidebar();
+            }
+        });
+
+        // ── API ────────────────────────────────────────
         const API_BASE = '/api/v1/admin';
         let dailyChartInstance = null;
         let analyticsChartInstance = null;
 
-        // Chart Global Defaults
-        Chart.defaults.color = '#1f521f';
-        Chart.defaults.font.family = '"JetBrains Mono", monospace';
-        Chart.defaults.borderColor = '#1f521f';
+        const chartColors = {
+            primary: 'rgb(87, 13, 248)',
+            primaryFade: 'rgba(87, 13, 248, 0.1)',
+            success: 'rgb(34, 197, 94)',
+            successFade: 'rgba(34, 197, 94, 0.1)',
+            error: 'rgb(239, 68, 68)',
+            errorFade: 'rgba(239, 68, 68, 0.1)'
+        };
 
         function getHeaders() {
             const token = localStorage.getItem('session_token');
@@ -474,13 +661,18 @@
 
         async function apiFetch(url, options = {}) {
             options.headers = { ...getHeaders(), ...options.headers };
-            const resp = await fetch(url, options);
-            if (resp.status === 401) {
-                localStorage.removeItem('session_token');
-                window.location.href = '/admin/login';
+            try {
+                const resp = await fetch(url, options);
+                if (resp.status === 401) {
+                    localStorage.removeItem('session_token');
+                    window.location.href = '/admin/login';
+                    return null;
+                }
+                return resp.json();
+            } catch (e) {
+                console.error("API Error:", e);
                 return null;
             }
-            return resp.json();
         }
 
         // Auth check
@@ -491,8 +683,10 @@
         // Show admin name
         try {
             const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
-            document.getElementById('adminName').textContent = (user.username || 'ROOT').toUpperCase();
-        } catch(e) {}
+            document.getElementById('adminName').textContent = user.username || 'Admin';
+            document.getElementById('fullName').textContent = user.full_name || 'Admin';
+            document.getElementById('userInitial').textContent = (user.username || 'A')[0].toUpperCase();
+        } catch (e) { }
 
         async function handleLogout() {
             await apiFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
@@ -501,49 +695,68 @@
             window.location.href = '/admin/login';
         }
 
-        // Navigation
+        // ── Navigation ────────────────────────────────
         function showSection(section) {
             ['dashboard', 'tokens', 'analytics', 'audit'].forEach(s => {
-                document.getElementById(`section-${s}`).classList.toggle('hidden', s !== section);
-                document.getElementById(`nav-${s}`).classList.toggle('active', s === section);
+                const el = document.getElementById(`section-${s}`);
+                const nav = document.getElementById(`nav-${s}`);
+
+                if (s === section) {
+                    el.classList.remove('hidden');
+                    nav.classList.add('active');
+                } else {
+                    el.classList.add('hidden');
+                    nav.classList.remove('active');
+                }
             });
+
+            // Close mobile sidebar after navigation
+            if (window.innerWidth < 1024) {
+                closeMobileSidebar();
+            }
+
             if (section === 'dashboard') loadDashboard();
             if (section === 'tokens') loadTokens();
             if (section === 'analytics') loadAnalytics();
             if (section === 'audit') loadAuditLogs();
         }
 
-        // Dashboard
+        // ── Dashboard ─────────────────────────────────
         async function loadDashboard() {
             const data = await apiFetch(`${API_BASE}/analytics/dashboard`);
             if (!data || !data.success) return;
             const s = data.data;
-            document.getElementById('stat-total').textContent = s.total_tokens || 0;
-            document.getElementById('stat-active').textContent = s.active_tokens || 0;
+
+            animateValue('stat-total', parseInt(document.getElementById('stat-total').textContent) || 0, s.total_tokens || 0, 1000);
+            animateValue('stat-active', parseInt(document.getElementById('stat-active').textContent) || 0, s.active_tokens || 0, 1000);
             document.getElementById('stat-requests').textContent = (s.total_requests_24h || 0).toLocaleString();
             document.getElementById('stat-success').textContent = (s.success_rate || 0).toFixed(1) + '%';
 
-            // Load daily chart
             const daily = await apiFetch(`${API_BASE}/analytics/daily?days=7`);
-            if (daily && daily.success && daily.data.length > 0) {
-                const labels = [...new Set(daily.data.map(d => d.date))].sort();
-                const counts = labels.map(l => daily.data.filter(d => d.date === l).reduce((a, b) => a + b.request_count, 0));
+            if (daily && daily.success) {
+                const labels = daily.data.length > 0 ? [...new Set(daily.data.map(d => formatDate(d.date)))].sort() : [];
+                const counts = labels.map(l => {
+                    return daily.data.filter(d => formatDate(d.date) === l).reduce((a, b) => a + b.request_count, 0);
+                });
                 renderDailyChart(labels, counts);
             }
 
-            // Load endpoints
-            const endpoints = await apiFetch(`${API_BASE}/analytics/endpoints?days=7&limit=10`);
+            const endpoints = await apiFetch(`${API_BASE}/analytics/endpoints?days=7&limit=5`);
             if (endpoints && endpoints.success) {
                 const tbody = document.querySelector('#endpointsTable tbody');
                 tbody.innerHTML = endpoints.data.map(e =>
                     `<tr>
-                        <td class="font-bold">${e.endpoint}</td>
-                        <td><span class="badge badge-dim">${e.method}</span></td>
-                        <td>${e.request_count}</td>
-                        <td>${(e.avg_response_time_ms || 0).toFixed(0)}ms</td>
+                        <td class="font-mono text-xs truncate max-w-[200px]">${e.endpoint}</td>
+                        <td><div class="badge badge-ghost badge-sm">${e.method}</div></td>
+                        <td class="text-right font-bold">${e.request_count.toLocaleString()}</td>
+                        <td class="text-right text-xs text-base-content/60">${(e.avg_response_time_ms || 0).toFixed(0)}ms</td>
                     </tr>`
-                ).join('') || '<tr><td colspan="4" class="text-center text-muted">-- NO DATA --</td></tr>';
+                ).join('') || '<tr><td colspan="4" class="text-center text-base-content/50 py-4">No data available</td></tr>';
             }
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         }
 
         function renderDailyChart(labels, data) {
@@ -554,69 +767,97 @@
                 data: {
                     labels,
                     datasets: [{
-                        label: 'REQUESTS',
+                        label: 'Requests',
                         data,
-                        backgroundColor: '#33ff00',
-                        borderColor: '#33ff00',
-                        borderWidth: 1
+                        backgroundColor: chartColors.primary,
+                        borderRadius: 6,
+                        maxBarThickness: 40
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false } },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#1f521f', tickLength: 0 }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false }
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#e5e7eb' } },
+                        x: { grid: { display: false } }
                     }
                 }
             });
         }
 
-        // Tokens
+        function animateValue(id, start, end, duration) {
+            if (start === end) return;
+            const obj = document.getElementById(id);
+            const range = end - start;
+            const minTimer = 50;
+            let stepTime = Math.abs(Math.floor(duration / range));
+            stepTime = Math.max(stepTime, minTimer);
+            const startTime = new Date().getTime();
+            const endTime = startTime + duration;
+            let timer;
+
+            function run() {
+                const now = new Date().getTime();
+                const remaining = Math.max((endTime - now) / duration, 0);
+                const value = Math.round(end - (remaining * range));
+                obj.innerHTML = value;
+                if (value == end) {
+                    clearInterval(timer);
+                }
+            }
+
+            timer = setInterval(run, stepTime);
+            run();
+        }
+
+        // ── Tokens ────────────────────────────────────
         async function loadTokens() {
             const data = await apiFetch(`${API_BASE}/tokens`);
             if (!data || !data.success) return;
             const tbody = document.getElementById('tokensBody');
+
             tbody.innerHTML = data.data.map(t => {
                 const statusBadge = t.is_active
-                    ? '<span class="badge badge-success">ACTIVE</span>'
-                    : '<span class="badge badge-error">DISABLED</span>';
-                const envBadge = {
-                    production: 'badge-warning',
-                    staging: 'badge-dim',
-                    development: 'badge-dim',
-                    test: 'badge-dim'
-                }[t.environment] || 'badge-dim';
+                    ? '<span class="badge badge-success badge-sm gap-1"><div class="w-2 h-2 rounded-full bg-success-content"></div> Active</span>'
+                    : '<span class="badge badge-ghost badge-sm opacity-60">Disabled</span>';
 
-                const lastUsed = t.last_used_at && t.last_used_at !== '0001-01-01T00:00:00Z' ? new Date(t.last_used_at).toLocaleDateString() : 'NEVER';
+                const envColors = {
+                    production: 'badge-primary',
+                    staging: 'badge-warning',
+                    development: 'badge-info',
+                    test: 'badge-ghost'
+                };
 
-                return `<tr>
+                const lastUsed = t.last_used_at && t.last_used_at.indexOf('0001') === -1
+                    ? `<div class="text-xs font-semibold">${new Date(t.last_used_at).toLocaleDateString()}</div><div class="text-[10px] text-base-content/50">${new Date(t.last_used_at).toLocaleTimeString()}</div>`
+                    : '<span class="text-xs text-base-content/40">Never</span>';
+
+                return `<tr class="hover">
                     <td>
                         <div class="font-bold">${t.name}</div>
-                        <div class="text-xs text-muted">${t.description || ''}</div>
+                        <div class="text-xs text-base-content/50 truncate max-w-[200px]">${t.description || 'No description'}</div>
                     </td>
-                    <td class="font-mono text-xs opacity-70">${t.token}</td>
-                    <td><span class="badge ${envBadge}">${t.environment.toUpperCase()}</span></td>
+                    <td><code class="text-xs">${t.token}</code></td>
+                    <td><span class="badge ${envColors[t.environment] || 'badge-ghost'} badge-outline badge-sm capitalize">${t.environment}</span></td>
                     <td>${statusBadge}</td>
-                    <td>${(t.total_requests || 0).toLocaleString()}</td>
-                    <td class="text-sm">${lastUsed}</td>
                     <td>
-                        <div class="flex gap-2">
-                            <button class="btn-terminal btn-sm" onclick="viewTokenDetail(${t.id})">INFO</button>
-                            ${t.is_active
-                                ? `<button class="btn-terminal btn-sm btn-danger" onclick="toggleToken(${t.id}, false)">DISABLE</button>`
-                                : `<button class="btn-terminal btn-sm" onclick="toggleToken(${t.id}, true)">ENABLE</button>`}
-                            <button class="btn-terminal btn-sm btn-danger" onclick="deleteToken(${t.id}, '${t.name}')">DEL</button>
+                        <div class="text-xs font-bold">${(t.total_requests || 0).toLocaleString()}</div>
+                        <div class="text-[10px] text-base-content/50">requests</div>
+                    </td>
+                    <td>${lastUsed}</td>
+                    <td class="text-right">
+                        <div class="join">
+                            <button class="btn btn-ghost btn-xs join-item" onclick="viewTokenDetail(${t.id})">Details</button>
+                            <button class="btn btn-ghost btn-xs join-item" onclick="showTokenMenu(event, ${t.id}, '${t.name.replace(/'/g, "\\'")}', ${t.is_active})">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                                </svg>
+                            </button>
                         </div>
                     </td>
                 </tr>`;
-            }).join('') || '<tr><td colspan="7" class="text-center py-8 text-muted">NO KEYS FOUND. INITIATE NEW KEY GENERATION.</td></tr>';
+            }).join('') || '<tr><td colspan="7" class="text-center py-12 text-base-content/50">No tokens found. Create your first one!</td></tr>';
         }
 
         function showCreateTokenModal() {
@@ -658,9 +899,57 @@
             input.select();
             navigator.clipboard.writeText(input.value);
             const btn = input.nextElementSibling;
-            btn.textContent = 'COPIED!';
-            setTimeout(() => btn.textContent = 'COPY', 2000);
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg> Copied!`;
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.classList.remove('btn-success');
+            }, 2000);
         }
+
+        // ── Token Context Menu ─────────────────────────
+        function showTokenMenu(e, id, name, isActive) {
+            e.stopPropagation();
+            const menu = document.getElementById('tokenContextMenu');
+            const ul = menu.querySelector('ul');
+
+            ul.innerHTML = isActive
+                ? `<li><a onclick="hideTokenMenu(); toggleToken(${id}, false)" class="text-warning text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                    Disable</a></li>`
+                : `<li><a onclick="hideTokenMenu(); toggleToken(${id}, true)" class="text-success text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    Enable</a></li>`;
+            ul.innerHTML += `<li><a onclick="hideTokenMenu(); deleteToken(${id}, '${name.replace(/'/g, "\\'")}')" class="text-error text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                Delete</a></li>`;
+
+            // Position the menu near the button
+            const btn = e.currentTarget;
+            const rect = btn.getBoundingClientRect();
+            const menuW = 144; // w-36 = 9rem = 144px
+            const menuH = ul.children.length * 40 + 8;
+
+            let top = rect.bottom + 4;
+            let left = rect.right - menuW;
+
+            // Keep within viewport
+            if (top + menuH > window.innerHeight) top = rect.top - menuH - 4;
+            if (left < 8) left = 8;
+
+            menu.style.top = top + 'px';
+            menu.style.left = left + 'px';
+            menu.classList.remove('hidden');
+        }
+
+        function hideTokenMenu() {
+            document.getElementById('tokenContextMenu').classList.add('hidden');
+        }
+
+        // Close context menu on click outside or scroll
+        document.addEventListener('click', hideTokenMenu);
+        document.addEventListener('scroll', hideTokenMenu, true);
 
         async function toggleToken(id, enable) {
             const action = enable ? 'enable' : 'disable';
@@ -669,76 +958,110 @@
         }
 
         async function deleteToken(id, name) {
-            if (!confirm(`CONFIRM DELETION: "${name}"? ACTION IRREVERSIBLE.`)) return;
+            if (!confirm(`Are you sure you want to delete token "${name}"?\nThis action cannot be undone.`)) return;
             await apiFetch(`${API_BASE}/tokens/${id}`, { method: 'DELETE' });
             loadTokens();
         }
 
         async function viewTokenDetail(id) {
+            document.getElementById('tokenDetailContent').innerHTML = '<div class="flex justify-center p-8"><span class="loading loading-spinner loading-lg"></span></div>';
+            document.getElementById('tokenDetailModal').showModal();
+
             const tokenData = await apiFetch(`${API_BASE}/tokens/${id}`);
             const analyticsData = await apiFetch(`${API_BASE}/analytics/tokens/${id}?days=30`);
             const logsData = await apiFetch(`${API_BASE}/tokens/${id}/logs?limit=20`);
 
-            if (!tokenData || !tokenData.success) return;
+            if (!tokenData || !tokenData.success) {
+                document.getElementById('tokenDetailModal').close();
+                return;
+            }
+
             const t = tokenData.data;
             const a = analyticsData && analyticsData.success ? analyticsData.data : {};
             const logs = logsData && logsData.success ? logsData.data : [];
+            const getIPDisplay = (data) => {
+                try {
+                    const list = typeof data === 'string' ? JSON.parse(data) : data;
+                    return (Array.isArray(list) && list.length) ? list.join(', ') : 'Not configured (Any IP allowed)';
+                } catch (e) {
+                    return 'Not configured (Any IP allowed)';
+                }
+            };
 
-            document.getElementById('tokenDetailTitle').textContent = `DETAILS: ${t.name}`;
+            document.getElementById('tokenDetailTitle').textContent = t.name;
+            document.getElementById('tokenDetailEnv').innerHTML = `<span class="badge badge-outline badge-sm">${t.environment}</span> &bull; Created ${new Date(t.created_at).toLocaleDateString()}`;
+
             document.getElementById('tokenDetailContent').innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="terminal-box p-3 text-center">
-                        <div class="text-xs text-muted">REQUESTS</div>
-                        <div class="text-xl font-bold">${(a.total_requests || 0).toLocaleString()}</div>
+                <div class="stats stats-vertical md:stats-horizontal shadow w-full mb-6">
+                    <div class="stat">
+                        <div class="stat-title">Total Requests</div>
+                        <div class="stat-value text-lg">${(a.total_requests || 0).toLocaleString()}</div>
                     </div>
-                    <div class="terminal-box p-3 text-center">
-                        <div class="text-xs text-muted">SUCCESS</div>
-                        <div class="text-xl font-bold text-[#33ff00]">${(a.successful_requests || 0).toLocaleString()}</div>
+                    <div class="stat">
+                        <div class="stat-title">Success Rate</div>
+                        <div class="stat-value text-lg text-success">${a.total_requests ? ((a.successful_requests / a.total_requests) * 100).toFixed(1) : 0}%</div>
                     </div>
-                    <div class="terminal-box p-3 text-center">
-                        <div class="text-xs text-muted">FAILED</div>
-                        <div class="text-xl font-bold text-[#ff3333]">${(a.failed_requests || 0).toLocaleString()}</div>
+                    <div class="stat">
+                        <div class="stat-title">Failed</div>
+                        <div class="stat-value text-lg text-error">${(a.failed_requests || 0).toLocaleString()}</div>
                     </div>
-                    <div class="terminal-box p-3 text-center">
-                        <div class="text-xs text-muted">AVG_LATENCY</div>
-                        <div class="text-xl font-bold">${(a.avg_response_time_ms || 0).toFixed(0)}ms</div>
+                    <div class="stat">
+                        <div class="stat-title">Avg Latency</div>
+                        <div class="stat-value text-lg">${(a.avg_response_time_ms || 0).toFixed(0)}<span class="text-sm font-normal text-base-content/50">ms</span></div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-sm">
-                    <div><span class="text-muted">ENV:</span> <span class="badge badge-dim">${t.environment}</span></div>
-                    <div><span class="text-muted">STATUS:</span> ${t.is_active ? '<span class="badge badge-success">ACTIVE</span>' : '<span class="badge badge-error">DISABLED</span>'}</div>
-                    <div><span class="text-muted">CREATED:</span> ${new Date(t.created_at).toLocaleString()}</div>
-                    <div><span class="text-muted">LIMITS:</span> ${t.rate_limit_per_minute}/min</div>
-                    <div><span class="text-muted">UNIQUE_IPS:</span> ${a.unique_ips || 0}</div>
-                    <div><span class="text-muted">UNIQUE_EPS:</span> ${a.unique_endpoints || 0}</div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="card bg-base-200">
+                        <div class="card-body">
+                            <h4 class="card-title text-sm">Configuration</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="opacity-60">Status:</span> ${t.is_active ? '<span class="badge badge-success badge-sm">Active</span>' : '<span class="badge badge-error badge-sm">Disabled</span>'}</div>
+                                <div class="flex justify-between"><span class="opacity-60">Rate Limit:</span> <span>${t.rate_limit_per_minute}/min</span></div>
+                                <div class="flex justify-between"><span class="opacity-60">IP Whitelist:</span> <span>${getIPDisplay(t.ip_whitelist)}</span></div>
+                                <div class="flex justify-between"><span class="opacity-60">Expires:</span> <span>${t.expires_at && t.expires_at.indexOf('0001') === -1 ? new Date(t.expires_at).toLocaleDateString() : 'Never'}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card bg-base-200">
+                        <div class="card-body">
+                            <h4 class="card-title text-sm">Usage Stats (30d)</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="opacity-60">Last Used:</span> <span>${t.last_used_at && t.last_used_at.indexOf('0001') === -1 ? new Date(t.last_used_at).toLocaleString() : 'Never'}</span></div>
+                                <div class="flex justify-between"><span class="opacity-60">Unique IPs:</span> <span>${a.unique_ips || 0}</span></div>
+                                <div class="flex justify-between"><span class="opacity-60">Unique Endpoints:</span> <span>${a.unique_endpoints || 0}</span></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <h4 class="mb-2 border-b border-[#1f521f]">RECENT_ACTIVITY_LOG</h4>
-                <div class="overflow-x-auto max-h-60 overflow-y-auto">
-                    <table class="terminal-table text-xs">
-                        <thead><tr><th>TIME</th><th>METHOD</th><th>PATH</th><th>CODE</th><th>MS</th><th>IP</th></tr></thead>
+
+                <h4 class="font-bold text-sm mb-3">Recent Requests</h4>
+                <div class="overflow-x-auto">
+                    <table class="table table-xs table-zebra">
+                        <thead><tr><th>Time</th><th>Method</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>IP</th></tr></thead>
                         <tbody>
                             ${logs.map(l => `<tr>
-                                <td>${new Date(l.created_at).toLocaleTimeString()}</td>
-                                <td>${l.method}</td>
-                                <td>${l.endpoint}</td>
-                                <td><span class="badge ${l.status_code < 300 ? 'badge-success' : l.status_code < 500 ? 'badge-warning' : 'badge-error'}">${l.status_code}</span></td>
-                                <td>${l.response_time_ms || 0}</td>
-                                <td>${l.ip_address}</td>
-                            </tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted">NO LOGS</td></tr>'}
+                                <td class="whitespace-nowrap">${new Date(l.created_at).toLocaleString()}</td>
+                                <td><span class="badge badge-ghost badge-xs font-mono">${l.method}</span></td>
+                                <td class="font-mono truncate max-w-[200px]">${l.endpoint}</td>
+                                <td><span class="badge badge-xs ${l.status_code < 300 ? 'badge-success' : l.status_code < 500 ? 'badge-warning' : 'badge-error'}">${l.status_code}</span></td>
+                                <td>${l.response_time_ms || 0}ms</td>
+                                <td class="font-mono">${l.ip_address}</td>
+                            </tr>`).join('') || '<tr><td colspan="6" class="text-center text-base-content/50 py-4">No recent activity</td></tr>'}
                         </tbody>
                     </table>
                 </div>
             `;
-            document.getElementById('tokenDetailModal').showModal();
         }
 
-        // Analytics
-        async function loadAnalytics() {
-            const daily = await apiFetch(`${API_BASE}/analytics/daily?days=30`);
-            if (daily && daily.success && daily.data.length > 0) {
-                const labels = [...new Set(daily.data.map(d => d.date))].sort();
-                const success = labels.map(l => daily.data.filter(d => d.date === l).reduce((a, b) => a + b.successful_requests, 0));
-                const failed = labels.map(l => daily.data.filter(d => d.date === l).reduce((a, b) => a + b.failed_requests, 0));
+        // ── Analytics ─────────────────────────────────
+        async function loadAnalytics(days = 30) {
+            const daily = await apiFetch(`${API_BASE}/analytics/daily?days=${days}`);
+            if (daily && daily.success) {
+                const labels = [...new Set(daily.data.map(d => formatDate(d.date)))].sort();
+
+                const successData = labels.map(l => daily.data.filter(d => formatDate(d.date) === l).reduce((a, b) => a + b.successful_requests, 0));
+                const failedData = labels.map(l => daily.data.filter(d => formatDate(d.date) === l).reduce((a, b) => a + b.failed_requests, 0));
 
                 if (analyticsChartInstance) analyticsChartInstance.destroy();
                 const ctx = document.getElementById('analyticsChart').getContext('2d');
@@ -747,79 +1070,59 @@
                     data: {
                         labels,
                         datasets: [
-                            {
-                                label: 'SUCCESS',
-                                data: success,
-                                borderColor: '#33ff00',
-                                backgroundColor: 'rgba(51, 255, 0, 0.1)',
-                                tension: 0, // No curves
-                                pointRadius: 0,
-                                fill: true,
-                                borderWidth: 1
-                            },
-                            {
-                                label: 'FAILED',
-                                data: failed,
-                                borderColor: '#ff3333',
-                                backgroundColor: 'rgba(255, 51, 51, 0.1)',
-                                tension: 0,
-                                pointRadius: 0,
-                                fill: true,
-                                borderWidth: 1
-                            }
+                            { label: 'Success', data: successData, borderColor: chartColors.success, backgroundColor: chartColors.successFade, fill: true, tension: 0.3 },
+                            { label: 'Failed', data: failedData, borderColor: chartColors.error, backgroundColor: chartColors.errorFade, fill: true, tension: 0.3 }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: {
-                            x: { grid: { display: false } },
-                            y: { grid: { color: '#1f521f' }, beginAtZero: true }
-                        },
                         interaction: { mode: 'index', intersect: false },
-                        plugins: { legend: { display: true, labels: { font: { family: 'JetBrains Mono' } } } }
+                        scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } }
                     }
                 });
             }
 
-            const endpoints = await apiFetch(`${API_BASE}/analytics/endpoints?days=30&limit=20`);
+            const endpoints = await apiFetch(`${API_BASE}/analytics/endpoints?days=${days}&limit=20`);
             if (endpoints && endpoints.success) {
                 const tbody = document.querySelector('#analyticsEndpointsTable tbody');
                 tbody.innerHTML = endpoints.data.map(e =>
                     `<tr>
-                        <td class="font-bold">${e.endpoint}</td>
-                        <td>${e.method}</td>
-                        <td>${e.request_count}</td>
-                        <td class="text-[#33ff00]">${e.successful_requests}</td>
-                        <td class="text-[#ff3333]">${e.failed_requests}</td>
-                        <td>${(e.avg_response_time_ms || 0).toFixed(1)}</td>
+                        <td class="font-mono text-xs">${e.endpoint}</td>
+                        <td><div class="badge badge-ghost badge-sm">${e.method}</div></td>
+                        <td class="text-right font-bold">${e.request_count.toLocaleString()}</td>
+                        <td class="text-right text-success">${e.successful_requests.toLocaleString()}</td>
+                        <td class="text-right ${e.failed_requests > 0 ? 'text-error font-bold' : 'text-base-content/30'}">${e.failed_requests.toLocaleString()}</td>
+                        <td class="text-right font-mono text-xs">${(e.avg_response_time_ms || 0).toFixed(1)}ms</td>
                     </tr>`
-                ).join('') || '<tr><td colspan="6" class="text-center text-muted">NO DATA</td></tr>';
+                ).join('') || '<tr><td colspan="6" class="text-center text-base-content/50 py-4">No data available</td></tr>';
             }
         }
 
-        // Audit Logs
+        // ── Audit Logs ────────────────────────────────
         async function loadAuditLogs() {
-            const data = await apiFetch(`${API_BASE}/audit-logs?limit=100`);
+            const data = await apiFetch(`${API_BASE}/audit-logs?limit=50`);
             if (!data || !data.success) return;
             const tbody = document.getElementById('auditBody');
             tbody.innerHTML = data.data.map(l => {
-                const actionBadge = {
+                const actionColors = {
                     create_token: 'badge-success', delete_token: 'badge-error', disable_token: 'badge-warning',
-                    enable_token: 'badge-warning', update_token: 'badge-dim'
-                }[l.action] || 'badge-dim';
-                return `<tr>
-                    <td class="text-xs text-muted">${new Date(l.created_at).toLocaleString()}</td>
-                    <td><span class="badge ${actionBadge}">${l.action.toUpperCase()}</span></td>
-                    <td>${l.resource_type}${l.resource_id ? ' #' + l.resource_id : ''}</td>
-                    <td class="text-sm">${l.description || '-'}</td>
-                    <td class="text-xs">${l.ip_address || '-'}</td>
+                    enable_token: 'badge-info', update_token: 'badge-primary', login: 'badge-neutral'
+                };
+                return `<tr class="hover">
+                    <td class="whitespace-nowrap text-xs text-base-content/70">${new Date(l.created_at).toLocaleString()}</td>
+                    <td><span class="badge ${actionColors[l.action] || 'badge-ghost'} badge-sm">${l.action.replace('_', ' ')}</span></td>
+                    <td class="font-mono text-xs">${l.resource_type}${l.resource_id ? ' #' + l.resource_id : ''}</td>
+                    <td class="text-sm max-w-xs truncate" title="${l.description}">${l.description || '-'}</td>
+                    <td class="font-mono text-xs">${l.ip_address || '-'}</td>
                 </tr>`;
-            }).join('') || '<tr><td colspan="5" class="text-center text-muted">NO LOGS</td></tr>';
+            }).join('') || '<tr><td colspan="5" class="text-center text-base-content/50 py-8">No audit logs found</td></tr>';
         }
 
-        // Initial load
-        loadDashboard();
+        window.onload = () => {
+            loadDashboard();
+        };
     </script>
 </body>
+
 </html>

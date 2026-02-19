@@ -17,7 +17,7 @@ type AdminUser struct {
 	FullName     string    `json:"full_name,omitempty" db:"full_name"`
 	Role         string    `json:"role" db:"role" binding:"required,oneof=super_admin admin viewer"`
 	IsActive     bool      `json:"is_active" db:"is_active"`
-	LastLoginAt  NullTime  `json:"last_login_at,omitempty" db:"last_login_at"`
+	LastLoginAt  NullTime  `json:"last_login_at,omitempty" db:"last_login_at" swaggertype:"string" example:"2024-01-01T12:00:00Z"`
 	LastLoginIP  string    `json:"last_login_ip,omitempty" db:"last_login_ip"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
@@ -50,10 +50,10 @@ type APIToken struct {
 	RateLimitPerDay    int `json:"rate_limit_per_day" db:"rate_limit_per_day"`
 
 	// Expiration
-	ExpiresAt NullTime `json:"expires_at,omitempty" db:"expires_at"`
+	ExpiresAt NullTime `json:"expires_at,omitempty" db:"expires_at" swaggertype:"string" example:"2024-12-31T23:59:59Z"`
 
 	// Usage Statistics
-	LastUsedAt       NullTime `json:"last_used_at,omitempty" db:"last_used_at"`
+	LastUsedAt       NullTime `json:"last_used_at,omitempty" db:"last_used_at" swaggertype:"string" example:"2024-02-15T10:30:00Z"`
 	LastUsedIP       string   `json:"last_used_ip,omitempty" db:"last_used_ip"`
 	LastUsedEndpoint string   `json:"last_used_endpoint,omitempty" db:"last_used_endpoint"`
 	TotalRequests    int64    `json:"total_requests" db:"total_requests"`
@@ -62,7 +62,7 @@ type APIToken struct {
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 	CreatedBy    *int      `json:"created_by,omitempty" db:"created_by"`
-	RevokedAt    NullTime  `json:"revoked_at,omitempty" db:"revoked_at"`
+	RevokedAt    NullTime  `json:"revoked_at,omitempty" db:"revoked_at" swaggertype:"string" example:"2024-02-01T09:00:00Z"`
 	RevokedBy    *int      `json:"revoked_by,omitempty" db:"revoked_by"`
 	RevokedReason string   `json:"revoked_reason,omitempty" db:"revoked_reason"`
 }
@@ -234,7 +234,7 @@ type TokenAnalytics struct {
 	MaxResponseTimeMs  int       `json:"max_response_time_ms"`
 	UniqueIPs          int       `json:"unique_ips"`
 	UniqueEndpoints    int       `json:"unique_endpoints"`
-	LastUsedAt         NullTime  `json:"last_used_at"`
+	LastUsedAt         NullTime  `json:"last_used_at" swaggertype:"string" example:"2024-02-15T10:30:00Z"`
 }
 
 // TokenDashboardStats contains overall token system statistics

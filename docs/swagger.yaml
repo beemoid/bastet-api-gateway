@@ -1,5 +1,81 @@
 basePath: /api/v1
 definitions:
+  models.APIToken:
+    properties:
+      allowed_origins:
+        description: JSON array
+        type: string
+      created_at:
+        description: Metadata
+        type: string
+      created_by:
+        type: integer
+      description:
+        type: string
+      environment:
+        description: Environment & Status
+        enum:
+        - production
+        - staging
+        - development
+        - test
+        type: string
+      expires_at:
+        description: Expiration
+        example: "2024-12-31T23:59:59Z"
+        type: string
+      id:
+        type: integer
+      ip_whitelist:
+        description: Security
+        type: string
+      is_active:
+        type: boolean
+      last_used_at:
+        description: Usage Statistics
+        example: "2024-02-15T10:30:00Z"
+        type: string
+      last_used_endpoint:
+        type: string
+      last_used_ip:
+        type: string
+      name:
+        maxLength: 200
+        minLength: 3
+        type: string
+      permissions:
+        description: JSON object
+        type: string
+      rate_limit_per_day:
+        type: integer
+      rate_limit_per_hour:
+        type: integer
+      rate_limit_per_minute:
+        description: Rate Limiting
+        type: integer
+      revoked_at:
+        example: "2024-02-01T09:00:00Z"
+        type: string
+      revoked_by:
+        type: integer
+      revoked_reason:
+        type: string
+      scopes:
+        description: Permissions & Scopes (stored as JSON in database)
+        type: string
+      token:
+        description: Only shown once during creation
+        type: string
+      token_prefix:
+        type: string
+      total_requests:
+        type: integer
+      updated_at:
+        type: string
+    required:
+    - environment
+    - name
+    type: object
   models.ATMI:
     properties:
       city_regency:
@@ -55,6 +131,96 @@ definitions:
         example: ATM-001
         type: string
     type: object
+  models.AdminUser:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      last_login_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      last_login_ip:
+        type: string
+      role:
+        enum:
+        - super_admin
+        - admin
+        - viewer
+        type: string
+      updated_at:
+        type: string
+      username:
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - email
+    - role
+    - username
+    type: object
+  models.CreateTokenRequest:
+    properties:
+      allowed_origins:
+        description: Will be converted to JSON
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      environment:
+        enum:
+        - production
+        - staging
+        - development
+        - test
+        type: string
+      expires_at:
+        type: string
+      ip_whitelist:
+        description: Will be converted to JSON
+        items:
+          type: string
+        type: array
+      name:
+        maxLength: 200
+        minLength: 3
+        type: string
+      rate_limit_per_day:
+        type: integer
+      rate_limit_per_hour:
+        type: integer
+      rate_limit_per_minute:
+        type: integer
+      scopes:
+        description: Will be converted to JSON
+        items:
+          type: string
+        type: array
+    required:
+    - environment
+    - name
+    type: object
+  models.CreateTokenResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+      token:
+        $ref: '#/definitions/models.APIToken'
+      warning:
+        description: '"Save this token - it won''t be shown again"'
+        type: string
+    type: object
   models.ErrorResponse:
     properties:
       error:
@@ -99,6 +265,31 @@ definitions:
         example: true
         type: boolean
     type: object
+  models.LoginRequest:
+    properties:
+      password:
+        minLength: 6
+        type: string
+      username:
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.LoginResponse:
+    properties:
+      expires_at:
+        type: string
+      message:
+        type: string
+      session_token:
+        type: string
+      success:
+        type: boolean
+      user:
+        $ref: '#/definitions/models.AdminUser'
+    type: object
   models.MachineListResponse:
     properties:
       data:
@@ -109,11 +300,20 @@ definitions:
       message:
         description: Human-readable message
         type: string
+      page:
+        description: Current page number
+        type: integer
+      page_size:
+        description: Items per page
+        type: integer
       success:
         description: Indicates if operation was successful
         type: boolean
       total:
         description: Total count of machines
+        type: integer
+      total_pages:
+        description: Total number of pages
         type: integer
     type: object
   models.MachineMetadataResponse:
@@ -458,11 +658,20 @@ definitions:
       message:
         description: Human-readable message
         type: string
+      page:
+        description: Current page number
+        type: integer
+      page_size:
+        description: Items per page
+        type: integer
       success:
         description: Indicates if operation was successful
         type: boolean
       total:
         description: Total count of tickets
+        type: integer
+      total_pages:
+        description: Total number of pages
         type: integer
     type: object
   models.TicketResponse:
@@ -517,6 +726,55 @@ definitions:
         example: 0.NEW
         type: string
     type: object
+  models.TokenListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.APIToken'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  models.TokenResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.APIToken'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  models.UpdateTokenRequest:
+    properties:
+      allowed_origins:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      expires_at:
+        type: string
+      ip_whitelist:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      rate_limit_per_day:
+        type: integer
+      rate_limit_per_hour:
+        type: integer
+      rate_limit_per_minute:
+        type: integer
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -532,6 +790,448 @@ info:
   title: API Gateway for On-Premise to Cloud Communication
   version: "1.0"
 paths:
+  /admin/analytics/daily:
+    get:
+      consumes:
+      - application/json
+      description: Get daily request volume
+      parameters:
+      - description: Number of days (default 30)
+        in: query
+        name: days
+        type: integer
+      - description: Filter by Token ID
+        in: query
+        name: token_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Daily Usage
+      tags:
+      - Analytics
+  /admin/analytics/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get overview statistics for the admin dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Dashboard Stats
+      tags:
+      - Analytics
+  /admin/analytics/endpoints:
+    get:
+      consumes:
+      - application/json
+      description: Get usage statistics by endpoint
+      parameters:
+      - description: Number of days (default 7)
+        in: query
+        name: days
+        type: integer
+      - description: Limit results (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Endpoint Stats
+      tags:
+      - Analytics
+  /admin/analytics/tokens/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed analytics for a specific token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Number of days (default 7)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Token Analytics
+      tags:
+      - Analytics
+  /admin/audit-logs:
+    get:
+      consumes:
+      - application/json
+      description: Get administrative audit logs
+      parameters:
+      - description: Limit results (default 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Audit Logs
+      tags:
+      - Admin Auth
+  /admin/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate admin user and return session token
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Admin Login
+      tags:
+      - Admin Auth
+  /admin/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate current session
+      parameters:
+      - description: Session Token
+        in: header
+        name: X-Session-Token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Admin Logout
+      tags:
+      - Admin Auth
+  /admin/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get details of currently logged in admin
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Current User
+      tags:
+      - Admin Auth
+  /admin/tokens:
+    get:
+      consumes:
+      - application/json
+      description: Get all API tokens
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TokenListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: List API Tokens
+      tags:
+      - Token Management
+    post:
+      consumes:
+      - application/json
+      description: Create a new API token
+      parameters:
+      - description: Token Details
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CreateTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create API Token
+      tags:
+      - Token Management
+  /admin/tokens/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Permanently delete an API token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Delete API Token
+      tags:
+      - Token Management
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific API token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get API Token
+      tags:
+      - Token Management
+    put:
+      consumes:
+      - application/json
+      description: Update details of an existing API token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Details
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Update API Token
+      tags:
+      - Token Management
+  /admin/tokens/{id}/disable:
+    patch:
+      consumes:
+      - application/json
+      description: Temporarily disable an API token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Disable API Token
+      tags:
+      - Token Management
+  /admin/tokens/{id}/enable:
+    patch:
+      consumes:
+      - application/json
+      description: Re-enable a disabled API token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Enable API Token
+      tags:
+      - Token Management
+  /admin/tokens/{id}/logs:
+    get:
+      consumes:
+      - application/json
+      description: Get access logs for a specific token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Limit results (default 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Token Logs
+      tags:
+      - Analytics
   /health:
     get:
       consumes:
@@ -557,7 +1257,20 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve all machines/terminals from the system
+      description: Retrieve all machines/terminals from the system. Supports pagination
+        via query params.
+      parameters:
+      - description: 'Page number (default: all results)'
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: 'Items per page (default: 100, max: 500)'
+        in: query
+        maximum: 500
+        minimum: 1
+        name: page_size
+        type: integer
       produces:
       - application/json
       responses:
@@ -782,7 +1495,20 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve all tickets from the system
+      description: Retrieve all tickets from the system. Supports pagination via query
+        params.
+      parameters:
+      - description: 'Page number (default: all results)'
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: 'Items per page (default: 100, max: 500)'
+        in: query
+        maximum: 500
+        minimum: 1
+        name: page_size
+        type: integer
       produces:
       - application/json
       responses:

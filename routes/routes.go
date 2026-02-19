@@ -24,6 +24,12 @@ func SetupRoutes(
 	// Apply global middleware
 	router.Use(middleware.CORS())
 
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "Welcome to API Gateway",
+		})
+	})
+
 	// Health check endpoints (no authentication required)
 	router.GET("/health", healthHandler.Check)
 	router.GET("/ping", healthHandler.Ping)
