@@ -119,6 +119,11 @@ func CombinedAuth(tokenService *service.TokenService) gin.HandlerFunc {
 		c.Set("token_id", token.ID)
 		c.Set("token_name", token.Name)
 		c.Set("token_scopes", token.Scopes)
+		// Vendor filter context – read by handlers to scope DB queries
+		c.Set("token_is_super", token.IsSuperToken)
+		c.Set("token_vendor_name", token.VendorName)
+		c.Set("token_filter_column", token.FilterColumn)
+		c.Set("token_filter_value", token.FilterValue)
 
 		// Process request
 		startTime := time.Now()

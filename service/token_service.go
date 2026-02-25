@@ -146,6 +146,10 @@ func (s *TokenService) CreateAPIToken(req *models.CreateTokenRequest, createdBy 
 		RateLimitPerMinute: req.RateLimitPerMinute,
 		RateLimitPerHour:   req.RateLimitPerHour,
 		RateLimitPerDay:    req.RateLimitPerDay,
+		VendorName:         req.VendorName,
+		FilterColumn:       req.FilterColumn,
+		FilterValue:        req.FilterValue,
+		IsSuperToken:       req.IsSuperToken,
 	}
 
 	if req.ExpiresAt != nil {
@@ -160,15 +164,17 @@ func (s *TokenService) CreateAPIToken(req *models.CreateTokenRequest, createdBy 
 
 	newValuesJSON, _ := json.Marshal(map[string]interface{}{
 		"name": token.Name, "environment": token.Environment, "scopes": req.Scopes,
+		"vendor_name": req.VendorName, "filter_column": req.FilterColumn,
+		"filter_value": req.FilterValue, "is_super_token": req.IsSuperToken,
 	})
 	_ = s.repo.CreateAuditLog(&models.AuditLog{
 		AdminUserID: &createdBy, Action: "create_token",
 		ResourceType: "token", ResourceID: &id,
-		NewValues: string(newValuesJSON),
+		NewValues:   string(newValuesJSON),
 		Description: fmt.Sprintf("Created API token: %s", token.Name),
 	})
 
-	s.logger.Infof("Created new API token: %s (ID: %d)", token.Name, id)
+	s.logger.Infof("Created new API token: %s (ID: %d, vendor: %s, super: %v)", token.Name, id, token.VendorName, token.IsSuperToken)
 	return token, nil
 }
 
@@ -232,6 +238,19 @@ func (s *TokenService) UpdateToken(id int, req *models.UpdateTokenRequest, updat
 	}
 	if req.ExpiresAt != nil {
 		updates["expires_at"] = *req.ExpiresAt
+	}
+	// Vendor filter fields
+	if req.VendorName != nil {
+		updates["vendor_name"] = *req.VendorName
+	}
+	if req.FilterColumn != nil {
+		updates["filter_column"] = *req.FilterColumn
+	}
+	if req.FilterValue != nil {
+		updates["filter_value"] = *req.FilterValue
+	}
+	if req.IsSuperToken != nil {
+		updates["is_super_token"] = *req.IsSuperToken
 	}
 
 	if len(updates) == 0 {
@@ -305,7 +324,8 @@ func (s *TokenService) DeleteToken(id int, deletedBy int) error {
 // Token Validation & Usage Tracking
 // ============================================================================
 
-// ValidateAPIToken validates a token and checks all security constraints
+// ValidateAPIToken validates a token and checks all security constraints.
+// Returns the token along with its resolved vendor filter context.
 func (s *TokenService) ValidateAPIToken(tokenValue, ipAddress string) (*models.APIToken, error) {
 	token, err := s.repo.GetAPITokenByToken(tokenValue)
 	if err != nil {
@@ -339,6 +359,16 @@ func (s *TokenService) ValidateAPIToken(tokenValue, ipAddress string) (*models.A
 	}
 
 	return token, nil
+}
+
+// GetVendorFilter extracts the vendor filter context from a validated token.
+func (s *TokenService) GetVendorFilter(token *models.APIToken) *models.TokenVendorFilter {
+	return &models.TokenVendorFilter{
+		IsSuperToken: token.IsSuperToken,
+		VendorName:   token.VendorName,
+		FilterColumn: token.FilterColumn,
+		FilterValue:  token.FilterValue,
+	}
 }
 
 // CheckRateLimit checks if token has exceeded rate limits

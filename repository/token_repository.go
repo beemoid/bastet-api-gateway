@@ -164,16 +164,29 @@ func (r *TokenRepository) CreateAPIToken(token *models.APIToken, createdBy int) 
 			token, name, description, token_prefix, scopes, permissions,
 			environment, is_active, ip_whitelist, allowed_origins,
 			rate_limit_per_minute, rate_limit_per_hour, rate_limit_per_day,
-			expires_at, created_by
+			expires_at, created_by,
+			vendor_name, filter_column, filter_value, is_super_token
 		)
 		OUTPUT INSERTED.id
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10,
-		        @p11, @p12, @p13, @p14, @p15)
+		        @p11, @p12, @p13, @p14, @p15,
+		        @p16, @p17, @p18, @p19)
 	`
 
 	var expiresAt interface{}
 	if token.ExpiresAt.Valid {
 		expiresAt = token.ExpiresAt.Time
+	}
+
+	var vendorName, filterColumn, filterValue interface{}
+	if token.VendorName != "" {
+		vendorName = token.VendorName
+	}
+	if token.FilterColumn != "" {
+		filterColumn = token.FilterColumn
+	}
+	if token.FilterValue != "" {
+		filterValue = token.FilterValue
 	}
 
 	var id int
@@ -183,6 +196,7 @@ func (r *TokenRepository) CreateAPIToken(token *models.APIToken, createdBy int) 
 		token.IPWhitelist, token.AllowedOrigins,
 		token.RateLimitPerMinute, token.RateLimitPerHour, token.RateLimitPerDay,
 		expiresAt, createdBy,
+		vendorName, filterColumn, filterValue, token.IsSuperToken,
 	).Scan(&id)
 
 	return id, err
@@ -203,6 +217,7 @@ func (r *TokenRepository) scanToken(row interface{ Scan(dest ...interface{}) err
 		&t.ExpiresAt, &t.LastUsedAt, &lastUsedIP, &lastUsedEndpoint,
 		&t.TotalRequests, &t.CreatedAt, &t.UpdatedAt, &createdBy,
 		&t.RevokedAt, &revokedBy, &revokedReason,
+		&t.VendorName, &t.FilterColumn, &t.FilterValue, &t.IsSuperToken,
 	)
 	if err != nil {
 		return nil, err
@@ -233,7 +248,11 @@ const tokenSelectQuery = `
 	       rate_limit_per_minute, rate_limit_per_hour, rate_limit_per_day,
 	       expires_at, last_used_at, last_used_ip, last_used_endpoint,
 	       total_requests, created_at, updated_at, created_by,
-	       revoked_at, revoked_by, revoked_reason
+	       revoked_at, revoked_by, revoked_reason,
+	       ISNULL(vendor_name, '') as vendor_name,
+	       ISNULL(filter_column, '') as filter_column,
+	       ISNULL(filter_value, '') as filter_value,
+	       ISNULL(is_super_token, 0) as is_super_token
 	FROM api_tokens
 `
 

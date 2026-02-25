@@ -24,7 +24,7 @@ type AdminUser struct {
 	CreatedBy    *int      `json:"created_by,omitempty" db:"created_by"`
 }
 
-// APIToken represents an API token with scopes, permissions, and analytics
+// APIToken represents an API token with scopes, permissions, vendor filter, and analytics
 type APIToken struct {
 	ID          int       `json:"id" db:"id"`
 	Token       string    `json:"token" db:"token"` // Only shown once during creation
@@ -35,6 +35,16 @@ type APIToken struct {
 	// Permissions & Scopes (stored as JSON in database)
 	Scopes      string `json:"scopes,omitempty" db:"scopes"`           // JSON array
 	Permissions string `json:"permissions,omitempty" db:"permissions"` // JSON object
+
+	// Vendor Data Filter
+	// VendorName is a human-readable label for the vendor this token is scoped to (e.g. "AVT").
+	// FilterColumn is the logical column key used in the WHERE clause (e.g. "flm_name").
+	// FilterValue is the value that must match (e.g. "AVT").
+	// IsSuperToken bypasses all vendor filters – the token sees and can mutate all data.
+	VendorName    string `json:"vendor_name,omitempty" db:"vendor_name"`
+	FilterColumn  string `json:"filter_column,omitempty" db:"filter_column"`
+	FilterValue   string `json:"filter_value,omitempty" db:"filter_value"`
+	IsSuperToken  bool   `json:"is_super_token" db:"is_super_token"`
 
 	// Environment & Status
 	Environment string `json:"environment" db:"environment" binding:"required,oneof=production staging development test"`
@@ -65,6 +75,15 @@ type APIToken struct {
 	RevokedAt    NullTime  `json:"revoked_at,omitempty" db:"revoked_at" swaggertype:"string" example:"2024-02-01T09:00:00Z"`
 	RevokedBy    *int      `json:"revoked_by,omitempty" db:"revoked_by"`
 	RevokedReason string   `json:"revoked_reason,omitempty" db:"revoked_reason"`
+}
+
+// TokenVendorFilter is the resolved filter context extracted from a validated token.
+// Handlers use this to scope their database queries.
+type TokenVendorFilter struct {
+	IsSuperToken bool
+	VendorName   string
+	FilterColumn string
+	FilterValue  string
 }
 
 // TokenUsageLog tracks every API request for analytics and audit
@@ -175,6 +194,16 @@ type CreateTokenRequest struct {
 	RateLimitPerHour   int      `json:"rate_limit_per_hour"`
 	RateLimitPerDay    int      `json:"rate_limit_per_day"`
 	ExpiresAt          *time.Time `json:"expires_at"`
+
+	// Vendor filter – mutually exclusive with IsSuperToken
+	// VendorName is a human-readable label (e.g. "AVT").
+	// FilterColumn is the logical key used to build the WHERE clause (e.g. "flm_name").
+	// FilterValue is the value to match (e.g. "AVT").
+	// Set IsSuperToken = true to grant unrestricted read/write across all vendors.
+	VendorName   string `json:"vendor_name"`
+	FilterColumn string `json:"filter_column"`
+	FilterValue  string `json:"filter_value"`
+	IsSuperToken bool   `json:"is_super_token"`
 }
 
 // CreateTokenResponse contains the newly created token (only shown once)
@@ -196,6 +225,12 @@ type UpdateTokenRequest struct {
 	RateLimitPerHour   *int       `json:"rate_limit_per_hour"`
 	RateLimitPerDay    *int       `json:"rate_limit_per_day"`
 	ExpiresAt          *time.Time `json:"expires_at"`
+
+	// Vendor filter fields – all optional, only updated when non-empty / explicitly set
+	VendorName   *string `json:"vendor_name"`
+	FilterColumn *string `json:"filter_column"`
+	FilterValue  *string `json:"filter_value"`
+	IsSuperToken *bool   `json:"is_super_token"`
 }
 
 // TokenListResponse contains a list of tokens (without full token value)

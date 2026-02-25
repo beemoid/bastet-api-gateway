@@ -1,0 +1,367 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Public API for retrieving ATM terminal data. Authentication requires an X-API-Token issued by the system administrator.",
+        "title": "ATM Monitoring API",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "Proprietary"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/data": {
+            "get": {
+                "security": [{"ApiKeyAuth": []}],
+                "description": "Retrieve joined ticket and machine rows. Results are automatically scoped to your vendor access. Supports pagination, sorting, and filtering.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Data"],
+                "summary": "Get all data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Page number. Omit to return all results.",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500,
+                        "description": "Items per page (default: 100, max: 500)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by. Allowed values: terminal_id, terminal_name, priority, mode, status, incident_start_datetime, count, balance, tickets_duration, open_time, close_time, flm_name, flm, slm, net. Default: incident_start_datetime",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["asc", "desc"],
+                        "description": "Sort direction: asc or desc. Default: desc",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Partial search on terminal_id or terminal_name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (e.g. 0.NEW). Use GET /data/metadata for valid values.",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by mode (e.g. Off-line). Use GET /data/metadata for valid values.",
+                        "name": "mode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by priority (e.g. 1.High). Use GET /data/metadata for valid values.",
+                        "name": "priority",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data retrieved successfully",
+                        "schema": {"$ref": "#/definitions/DataListResponse"}
+                    },
+                    "401": {
+                        "description": "Missing or invalid API token",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            }
+        },
+        "/data/metadata": {
+            "get": {
+                "security": [{"ApiKeyAuth": []}],
+                "description": "Retrieve all valid values for status, mode, and priority fields. Use these values as inputs for the filter parameters on GET /data. Values are cached and refreshed every hour.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Data"],
+                "summary": "Get field metadata",
+                "responses": {
+                    "200": {
+                        "description": "Metadata retrieved successfully",
+                        "schema": {"$ref": "#/definitions/MetadataResponse"}
+                    },
+                    "401": {
+                        "description": "Missing or invalid API token",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            }
+        },
+        "/data/{terminal_id}": {
+            "get": {
+                "security": [{"ApiKeyAuth": []}],
+                "description": "Retrieve a single row by terminal ID. Returns 404 if the terminal does not exist or is outside your access scope.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Data"],
+                "summary": "Get data by terminal ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "terminal_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data retrieved successfully",
+                        "schema": {"$ref": "#/definitions/DataResponse"}
+                    },
+                    "401": {
+                        "description": "Missing or invalid API token",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "404": {
+                        "description": "Terminal not found or outside your access scope",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            },
+            "put": {
+                "security": [{"ApiKeyAuth": []}],
+                "description": "Update ticket fields for a terminal. You can only update terminals within your access scope. All fields are optional — only provided fields are updated.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Data"],
+                "summary": "Update ticket fields",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Terminal ID",
+                        "name": "terminal_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {"$ref": "#/definitions/DataUpdateRequest"}
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated successfully",
+                        "schema": {"$ref": "#/definitions/DataResponse"}
+                    },
+                    "400": {
+                        "description": "Invalid request body or no fields provided",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "401": {
+                        "description": "Missing or invalid API token",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "403": {
+                        "description": "Terminal is outside your access scope",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "404": {
+                        "description": "Terminal not found",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {"$ref": "#/definitions/ErrorResponse"}
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Check the health status of the API and its database connections.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Health"],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "API is healthy",
+                        "schema": {"type": "object", "additionalProperties": true}
+                    },
+                    "503": {
+                        "description": "Service unavailable",
+                        "schema": {"type": "object", "additionalProperties": true}
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "description": "Simple liveness check. Returns pong if the API is running.",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["Health"],
+                "summary": "Ping",
+                "responses": {
+                    "200": {
+                        "description": "pong",
+                        "schema": {"type": "object", "additionalProperties": {"type": "string"}}
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "DataRow": {
+            "type": "object",
+            "properties": {
+                "terminal_id":             {"type": "string",  "example": "ATM-001"},
+                "terminal_name":           {"type": "string",  "example": "Main Branch ATM"},
+                "priority":                {"type": "string",  "example": "1.High"},
+                "mode":                    {"type": "string",  "example": "Off-line"},
+                "initial_problem":         {"type": "string",  "example": "Cash dispenser jam"},
+                "current_problem":         {"type": "string",  "example": "Card reader error"},
+                "p_duration":              {"type": "string",  "example": "048 01:25"},
+                "incident_start_datetime": {"type": "string",  "example": "2025-12-25 20:35"},
+                "count":                   {"type": "integer", "example": 607},
+                "status":                  {"type": "string",  "example": "0.NEW"},
+                "remarks":                 {"type": "string",  "example": "Waiting for technician"},
+                "balance":                 {"type": "integer", "example": 1000000},
+                "condition":               {"type": "string",  "example": "SUSPECT"},
+                "tickets_no":              {"type": "string",  "example": "TKT-2024-001"},
+                "tickets_duration":        {"type": "number",  "example": 1153.5},
+                "open_time":               {"type": "string",  "example": "2025-12-25 21:14:16"},
+                "close_time":              {"type": "string",  "example": "2025-12-25 18:00:00"},
+                "problem_history":         {"type": "string",  "example": "[12-25 21:14: Cash Empty]"},
+                "mode_history":            {"type": "string",  "example": "[12-25 21:14: In Service][12-27 20:15: Closed]"},
+                "dsp_flm":                 {"type": "string",  "example": "FLM-001"},
+                "dsp_slm":                 {"type": "string",  "example": "SLM-001"},
+                "last_withdrawal":         {"type": "string",  "example": "2025-12-25T21:16:24Z"},
+                "export_name":             {"type": "string",  "example": "ATM_Report"},
+                "flm_name":                {"type": "string",  "example": "AVT", "description": "Vendor / FLM name"},
+                "flm":                     {"type": "string",  "example": "AVT - KARAWANG", "description": "FLM region"},
+                "slm":                     {"type": "string",  "example": "KGP - WINCOR DW", "description": "SLM group"},
+                "net":                     {"type": "string",  "example": "SMS", "description": "Network group"}
+            }
+        },
+        "DataUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "priority":        {"type": "string", "example": "1.High"},
+                "mode":            {"type": "string", "example": "Off-line"},
+                "current_problem": {"type": "string", "example": "Card reader fixed"},
+                "status":          {"type": "string", "example": "2.Kirim FLM"},
+                "remarks":         {"type": "string", "example": "Technician dispatched"},
+                "condition":       {"type": "string", "example": "Normal"},
+                "close_time":      {"type": "string", "example": "2025-01-15 18:00:00"},
+                "problem_history": {"type": "string", "example": "Card reader issue resolved"},
+                "mode_history":    {"type": "string", "example": "Online->Offline->Online"}
+            }
+        },
+        "DataResponse": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "message": {"type": "string"},
+                "data":    {"$ref": "#/definitions/DataRow"}
+            }
+        },
+        "DataListResponse": {
+            "type": "object",
+            "properties": {
+                "success":     {"type": "boolean"},
+                "message":     {"type": "string"},
+                "data":        {"type": "array", "items": {"$ref": "#/definitions/DataRow"}},
+                "total":       {"type": "integer", "example": 671, "description": "Total rows matching the query"},
+                "page":        {"type": "integer", "example": 1,   "description": "Current page (omitted when all results returned)"},
+                "page_size":   {"type": "integer", "example": 100, "description": "Items per page (omitted when all results returned)"},
+                "total_pages": {"type": "integer", "example": 7,   "description": "Total pages (omitted when all results returned)"},
+                "sort_by":     {"type": "string",  "example": "incident_start_datetime"},
+                "sort_order":  {"type": "string",  "example": "desc"},
+                "search":      {"type": "string",  "example": ""},
+                "status":      {"type": "string",  "example": ""},
+                "mode":        {"type": "string",  "example": ""},
+                "priority":    {"type": "string",  "example": ""}
+            }
+        },
+        "MetadataResponse": {
+            "type": "object",
+            "properties": {
+                "success":      {"type": "boolean"},
+                "message":      {"type": "string"},
+                "statuses":     {"type": "array", "items": {"$ref": "#/definitions/StatusInfo"}},
+                "modes":        {"type": "array", "items": {"$ref": "#/definitions/ModeInfo"}},
+                "priorities":   {"type": "array", "items": {"$ref": "#/definitions/PriorityInfo"}},
+                "last_updated": {"type": "string", "example": "2025-01-15T10:30:00Z"}
+            }
+        },
+        "StatusInfo": {
+            "type": "object",
+            "properties": {
+                "code":          {"type": "string",  "example": "0.NEW"},
+                "description":   {"type": "string",  "example": "New ticket"},
+                "is_documented": {"type": "boolean", "example": true}
+            }
+        },
+        "ModeInfo": {
+            "type": "object",
+            "properties": {
+                "code":          {"type": "string",  "example": "Off-line"},
+                "description":   {"type": "string",  "example": "Terminal is offline"},
+                "is_documented": {"type": "boolean", "example": true}
+            }
+        },
+        "PriorityInfo": {
+            "type": "object",
+            "properties": {
+                "code":          {"type": "string",  "example": "1.High"},
+                "description":   {"type": "string",  "example": "High priority"},
+                "is_documented": {"type": "boolean", "example": true}
+            }
+        },
+        "ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean", "example": false},
+                "message": {"type": "string",  "example": "Error message describing what went wrong"},
+                "error":   {"type": "string",  "example": "detailed error information"}
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "API token provided by the system administrator. Send in the X-API-Token request header.",
+            "type": "apiKey",
+            "name": "X-API-Token",
+            "in": "header"
+        }
+    }
+}
